@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f0e0c">
+<title>TBH · Inventario</title>
+<style>
+  :root{
+    --ink:#0f0e0c; --paper:#f4efe4; --paper-2:#e7ddc8;
+    --bar:#a3320b; --resto:#1f5f3f; --accent:#b8860b;
+    --muted:#6b6358; --ok:#15803d; --warn:#b91c1c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:16px;line-height:1.4;overscroll-behavior:none;
+  }
+  header{position:sticky;top:0;z-index:50;background:var(--ink);color:var(--paper);padding:env(safe-area-inset-top) 0 0}
+  .h-top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 8px}
+  .h-title{font-weight:700;font-size:15px}
+  .h-title .cat{color:var(--accent);font-weight:600;font-size:12px;display:block;letter-spacing:.08em;text-transform:uppercase}
+  .h-right{display:flex;align-items:center;gap:10px}
+  .h-save{font-size:11px;color:#86efac;display:flex;align-items:center;gap:5px}
+  .h-save .dot{width:7px;height:7px;border-radius:50%;background:#86efac}
+  .gear{
+    width:34px;height:34px;border-radius:8px;border:1px solid rgba(244,239,228,.3);
+    background:transparent;color:var(--paper);font-size:17px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex:none;
+  }
+  .gear:active{background:rgba(244,239,228,.15)}
+
+  /* selettore categoria */
+  .cat-bar{padding:8px 12px;background:#1a1410;border-top:1px solid rgba(244,239,228,.12)}
+  .cat-select{
+    width:100%;padding:10px 12px;font-size:14px;font-weight:700;font-family:inherit;
+    background:var(--paper);color:var(--ink);border:none;border-radius:8px;
+  }
+
+  .tabs{display:flex;border-top:1px solid rgba(244,239,228,.15)}
+  .tab{
+    flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:700;
+    letter-spacing:.05em;background:var(--ink);color:rgba(244,239,228,.5);
+    border:none;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;
+  }
+  .tab .badge{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:rgba(244,239,228,.15)}
+  .tab.active.bar{color:#fff;border-bottom-color:var(--bar);background:#2a1410}
+  .tab.active.resto{color:#fff;border-bottom-color:var(--resto);background:#0f2418}
+  .tab.active.cuisine{color:#fff;border-bottom-color:var(--accent);background:#2a2410}
+  .tab.active .badge{background:var(--accent);color:var(--ink)}
+  .tab.disabled{opacity:.32;cursor:default}
+  .tab.disabled .badge{display:none}
+
+  .searchbar{padding:10px 16px;background:var(--paper-2);border-bottom:1px solid rgba(15,14,12,.12);position:sticky;top:0;z-index:40}
+  .searchbar input{
+    width:100%;padding:11px 14px;font-size:15px;border:1px solid rgba(15,14,12,.25);
+    border-radius:9px;background:var(--paper);color:var(--ink);font-family:inherit;
+  }
+  .searchbar input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+
+  .progress{
+    padding:8px 16px;font-size:12px;color:var(--muted);background:var(--paper-2);
+    display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid rgba(15,14,12,.1);
+  }
+  .progress .pct{font-weight:700;color:var(--ink)}
+  .pbar{height:4px;background:rgba(15,14,12,.12);border-radius:2px;overflow:hidden;flex:1;margin:0 12px}
+  .pbar span{display:block;height:100%;background:var(--accent);transition:width .25s}
+  .tipbar{background:#fff7e0;padding:6px 16px;font-size:11.5px;color:#6b6358;border-bottom:1px solid rgba(15,14,12,.1)}
+
+  .list{padding:6px 0 140px}
+  .item{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(15,14,12,.08);background:var(--paper)}
+  .item.counted{background:linear-gradient(90deg,rgba(184,134,11,.09),transparent)}
+  .item-num{font-size:11px;color:var(--muted);font-weight:700;width:26px;text-align:right;flex:none}
+  .item-info{flex:1;min-width:0}
+  .item-name{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item-meta{font-size:11px;color:var(--muted);margin-top:1px}
+  .item-meta .ref{background:var(--paper-2);padding:1px 5px;border-radius:3px;margin-right:5px}
+  .qty-box{display:flex;align-items:center;gap:6px}
+  .qty-btn{
+    width:34px;height:34px;border-radius:8px;border:1px solid rgba(15,14,12,.25);
+    background:var(--paper-2);color:var(--ink);font-size:20px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;line-height:1;padding-bottom:2px;flex:none;
+  }
+  .qty-btn:active{background:var(--ink);color:var(--paper)}
+  .qty-input{
+    width:62px;height:34px;text-align:center;font-size:17px;font-weight:700;
+    border:1px solid rgba(15,14,12,.3);border-radius:8px;background:var(--paper);
+    color:var(--ink);font-family:inherit;
+  }
+  .qty-input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .item.bar-mode .qty-input.has-val{background:#fff0e8;border-color:var(--bar)}
+  .item.resto-mode .qty-input.has-val{background:#e8f3ec;border-color:var(--resto)}
+  .item.single-mode .qty-input.has-val{background:#fff7e0;border-color:var(--accent)}
+  .empty-search{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px}
+
+  .footer{
+    position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--ink);color:var(--paper);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;
+  }
+  .footer button{flex:1;padding:13px 10px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-export{background:var(--accent);color:var(--ink)}
+  .btn-reset{background:transparent;color:rgba(244,239,228,.6);border:1px solid rgba(244,239,228,.3);flex:0 0 90px}
+  .footer button:active{transform:scale(.98)}
+
+  .modal{position:fixed;inset:0;z-index:100;background:rgba(15,14,12,.7);display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.show{display:flex}
+  .modal-box{background:var(--paper);border-radius:14px;padding:22px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto}
+  .modal-box h3{font-size:19px;margin-bottom:6px}
+  .modal-box p{font-size:13.5px;color:var(--muted);margin-bottom:16px}
+
+  .col-block{margin-bottom:16px;border:1px solid rgba(15,14,12,.18);border-radius:10px;overflow:hidden}
+  .col-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-weight:700;font-size:13px;color:#fff}
+  .col-head .where{font-size:11px;font-weight:600;opacity:.85}
+  .col-data{
+    font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;background:var(--paper-2);
+    padding:10px 14px;max-height:150px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;
+    color:var(--ink);-webkit-user-select:text;user-select:text;
+  }
+  .modal-actions{display:flex;gap:10px;margin-top:4px}
+  .modal-actions button{flex:1;padding:12px;border-radius:9px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  .m-primary{background:var(--ink);color:var(--paper)}
+  .m-ghost{background:var(--paper-2);color:var(--ink)}
+  .m-pdf{background:var(--accent);color:var(--ink)}
+  .hint{font-size:12px;color:var(--muted);background:#fff7e0;border-left:3px solid var(--accent);padding:9px 12px;border-radius:6px;margin-bottom:16px;line-height:1.45}
+  .bigsteps{font-size:12.5px;color:var(--ink);background:var(--paper-2);padding:11px 13px;border-radius:8px;margin-bottom:16px;line-height:1.6}
+
+  .set-section{margin-bottom:20px}
+  .set-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .lang-row{display:flex;gap:8px}
+  .lang-btn{
+    flex:1;padding:11px;border:1px solid rgba(15,14,12,.25);border-radius:9px;
+    background:var(--paper-2);color:var(--ink);font-size:14px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+  }
+  .lang-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .price-cat-sel{
+    width:100%;padding:9px 12px;font-size:13px;font-weight:700;font-family:inherit;
+    border:1px solid rgba(15,14,12,.25);border-radius:8px;background:var(--paper);
+    color:var(--ink);margin-bottom:8px;
+  }
+  .price-list{max-height:38vh;overflow-y:auto;border:1px solid rgba(15,14,12,.15);border-radius:9px}
+  .price-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(15,14,12,.08)}
+  .price-row:last-child{border-bottom:none}
+  .price-name{flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .price-input{
+    width:78px;height:32px;text-align:right;font-size:14px;font-weight:700;
+    border:1px solid rgba(15,14,12,.3);border-radius:7px;background:var(--paper);
+    color:var(--ink);font-family:inherit;padding-right:8px;
+  }
+  .price-input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .price-chf{font-size:11px;color:var(--muted);font-weight:700}
+  .locked{text-align:center;padding:24px 10px;color:var(--muted);font-size:13px}
+  .pwd-input{
+    width:100%;padding:12px;font-size:20px;text-align:center;letter-spacing:.3em;
+    border:1px solid rgba(15,14,12,.3);border-radius:9px;background:var(--paper);
+    font-family:inherit;margin:12px 0;
+  }
+
+  .toast{
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:var(--paper);padding:11px 20px;border-radius:24px;
+    font-size:13px;font-weight:600;z-index:200;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  #printArea{display:none}
+  @media print{
+    body>*{display:none!important}
+    #printArea{display:block!important;padding:0}
+    @page{margin:1.5cm}
+    .p-break{page-break-before:always;break-before:page}
+    .p-doc-head{font-size:11px;color:#555;margin-bottom:10px}
+    .p-title{font-size:20px;font-weight:700;margin-bottom:2px}
+    .p-sub{font-size:12px;color:#555;margin-bottom:14px}
+    .p-table{width:100%;border-collapse:collapse;font-size:11px}
+    .p-table th{background:#0f0e0c;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+    .p-table td{padding:5px 8px;border-bottom:1px solid #ddd}
+    .p-table td.num{text-align:center;font-weight:700;width:55px}
+    .p-table tr:nth-child(even) td{background:#f4f0e6}
+    .p-foot{margin-top:16px;font-size:11px;color:#555}
+    /* copertina del PDF completo */
+    .p-cover{page-break-after:always;break-after:page;padding-top:60px}
+    .p-cover-title{font-size:32px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+    .p-cover-sub{font-size:16px;color:#444;margin-bottom:4px}
+    .p-cover-date{font-size:13px;color:#777;margin-bottom:36px}
+    .p-cover-list{border-top:2px solid #0f0e0c;padding-top:14px}
+    .p-cover-row{display:flex;justify-content:space-between;padding:7px 4px;font-size:13px;border-bottom:1px solid #e5e0d0}
+    .p-cover-row span:first-child{font-weight:600}
+    .p-cover-row span:last-child{color:#555;font-variant-numeric:tabular-nums}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-top">
+    <div class="h-title">
+      <span class="cat" id="hCat">Inventario</span>
+      The Bowling Hôtel
+    </div>
+    <div class="h-right">
+      <div class="h-save"><span class="dot"></span><span id="saveStatus">Salvato</span></div>
+      <button class="gear" onclick="openSettings()" title="Impostazioni">&#9881;</button>
+    </div>
+  </div>
+  <div class="cat-bar">
+    <select class="cat-select" id="catSelect" onchange="changeCategoria(this.value)"></select>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab bar active" data-zone="bar" onclick="switchZone('bar')"><span id="tabBar">BAR</span> <span class="badge" id="badgeBar">0</span></button>
+    <button class="tab resto" data-zone="resto" onclick="switchZone('resto')"><span id="tabResto">RESTO</span> <span class="badge" id="badgeResto">0</span></button>
+  </div>
+</header>
+
+<div class="searchbar">
+  <input type="text" id="search" placeholder="Cerca prodotto" autocomplete="off">
+</div>
+
+<div class="progress">
+  <span><span id="lblCounted">Contati</span>: <span class="pct" id="progText">0 / 0</span></span>
+  <div class="pbar"><span id="progBar" style="width:0%"></span></div>
+  <span class="pct" id="progPct">0%</span>
+</div>
+<div class="tipbar" id="tipBar"></div>
+
+<div class="list" id="list"></div>
+
+<div class="footer">
+  <button class="btn-reset" onclick="confirmReset()" id="btnReset">Azzera</button>
+  <button class="btn-export" onclick="openExport()" id="btnExport">Esporta PDF</button>
+</div>
+
+<!-- MODAL EXPORT -->
+<div class="modal" id="exportModal">
+  <div class="modal-box">
+    <h3 id="exTitle">Esporta inventario</h3>
+    <p id="exDesc">Crea il PDF della conta da inviare alla contabile.</p>
+    <div class="hint" id="exHint"></div>
+    <div class="col-block">
+      <div class="col-head" style="background:var(--ink)">
+        <span id="exRecap">RIEPILOGO</span>
+        <span class="where" id="exportSummary"></span>
+      </div>
+      <div class="col-data" id="exportPreview"></div>
+    </div>
+    <div class="modal-actions" style="margin-bottom:8px">
+      <button class="m-pdf" style="font-size:15px;padding:14px" onclick="printPDF('all')" id="exBtnPdfAll">PDF tutte le categorie</button>
+    </div>
+    <div class="modal-actions" style="margin-bottom:10px">
+      <button class="m-pdf" style="background:var(--paper-2);color:var(--ink);font-size:14px;padding:12px" onclick="printPDF('one')" id="exBtnPdf">PDF questa categoria</button>
+    </div>
+    <div class="bigsteps" id="exSteps"></div>
+    <div class="modal-actions">
+      <button class="m-ghost" onclick="closeExport()" id="exBtnClose">Chiudi</button>
+      <button class="m-ghost" onclick="copyRiepilogo()" id="exBtnCopy">Copia testo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPOSTAZIONI -->
+<div class="modal" id="settingsModal">
+  <div class="modal-box">
+    <h3 id="setTitle">Impostazioni</h3>
+    <div class="set-section">
+      <div class="set-label" id="setLangLabel">Lingua</div>
+      <div class="lang-row">
+        <button class="lang-btn" data-lang="it" onclick="setLang('it')">Italiano</button>
+        <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">Français</button>
+        <button class="lang-btn" data-lang="en" onclick="setLang('en')">English</button>
+      </div>
+    </div>
+    <div class="set-section">
+      <div class="set-label" id="setPriceLabel">Aggiorna prezzi d'acquisto</div>
+      <div id="priceArea"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="m-ghost" onclick="closeSettings()" id="setBtnClose">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESET -->
+<div class="modal" id="resetModal">
+  <div class="modal-box">
+    <h3 id="rsTitle">Azzerare tutto?</h3>
+    <p id="rsDesc">Tutte le quantità di questa categoria verranno cancellate.</p>
+    <div id="rsPwdArea"></div>
+    <div class="modal-actions">
+      <button class="m-ghost" onclick="closeReset()" id="rsCancel">Annulla</button>
+      <button class="m-primary" style="background:var(--warn)" onclick="tryReset()" id="rsOk">Sì, azzera</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+
+<script>
+/* ====================================================================
+   INVENTARIO TBH — versione completa, 13 categorie
+   100% offline. Dati salvati su questo dispositivo.
+   ==================================================================== */
+
+/* === DATI: 13 categorie, 553 prodotti dal file TBH === */
+const CATEGORIE=[{id:"spiritueux",nome:"Spiritueux",zona:"doppia",step:0.1,items:[{n:"Aberdour single malt 12 ans",u:"70cl",pa:63.5},{n:"Abricotine Morand",u:"70cl",pa:44.9},{n:"Abricotine Valladière",u:"70cl",pa:23.9},{n:"Amaretto",u:"70cl",pa:19.9},{n:"Aperol",u:"100cl",pa:16.5},{n:"Appenzeller",u:"100cl",pa:29.8},{n:"Ardberg single malt 10 ans",u:"70cl",pa:49.3},{n:"Averna",u:"70cl",pa:16.9},{n:"Bacardi",u:"70cl",pa:17.5},{n:"Bailey's",u:"70cl",pa:17.0},{n:"Ballantine's",u:"70cl",pa:21.2},{n:"Brandy cuisine",u:"100cl",pa:16.8},{n:"Cachaça",u:"70cl",pa:22.9},{n:"Calvados Morin",u:"70cl",pa:20.5},{n:"Campari",u:"100cl",pa:23.6},{n:"Chivas regal",u:"70cl",pa:34.35},{n:"Cognac Rémy Martin VSOP",u:"70cl",pa:41.2},{n:"Cointreau",u:"70cl",pa:23.7},{n:"Cynar",u:"100cl",pa:18.5},{n:"Eau de vie Framboise",u:"70cl",pa:35.3},{n:"Fernet Branca",u:"70cl",pa:21.95},{n:"Flamberge cuisine",u:"100cl",pa:21.75},{n:"Get 27",u:"70cl",pa:18.1},{n:"Gordon's Gin",u:"70cl",pa:16.3},{n:"Gin Tanqueray LDG",u:"70cl",pa:22.15},{n:"Gin Rangpur",u:"70cl",pa:29.0},{n:"Grand Marnier",u:"70cl",pa:29.9},{n:"Grappa fior di vite",u:"70cl",pa:21.15},{n:"Grappa de Cépage",u:"50cl",pa:25.3},{n:"Grappa Cleopatra",u:"70cl",pa:47.02},{n:"Havana Club Brun 7 ans",u:"70cl",pa:32.4},{n:"Jaegermeister",u:"100cl",pa:28.2},{n:"JWalker Black",u:"70cl",pa:31.3},{n:"J Walker Red",u:"70cl",pa:19.8},{n:"Jack Daniel's",u:"70cl",pa:25.7},{n:"JB",u:"70cl",pa:21.5},{n:"Kirch",u:"100cl",pa:22.9},{n:"Limoncello",u:"200cl",pa:28.5},{n:"Crème de cassis",u:"70cl",pa:16.8},{n:"Laphoroaing",u:"70cl",pa:46.2},{n:"Lagavulin",u:"70cl",pa:71.25},{n:"Liqueur  Abricot",u:"70cl",pa:31.5},{n:"Liqueur de BANANE",u:"70cl",pa:21.2},{n:"Liqueur de TRIPLE SEC",u:"70cl",pa:23.5},{n:"Liqueur de White Pêche",u:"70cl",pa:23.5},{n:"Liqueur de Williamine",u:"70cl",pa:29.1},{n:"Creme de Mûre",u:"70cl",pa:15.0},{n:"Litchi",u:"70cl",pa:17.9},{n:"Madère cuisine",u:"100cl",pa:10.86},{n:"Malibu",u:"70cl",pa:19.1},{n:"Maraschino",u:"100cl",pa:12.5},{n:"Marc du valais",u:"100cl",pa:18.75},{n:"Marsala cuisine",u:"75cl",pa:12.5},{n:"Martini blanc",u:"100cl",pa:10.2},{n:"Martini rouge",u:"100cl",pa:10.2},{n:"Montenegro",u:"70cl",pa:23.9},{n:"Oban",u:"70cl",pa:68.5},{n:"Pastis",u:"100cl",pa:27.95},{n:"Pomme vedrenne Manzana",u:"75cl",pa:24.5},{n:"Porto Blanc",u:"75cl",pa:13.5},{n:"Porto Rouge",u:"75cl",pa:9.5},{n:"Pruneaou",u:"70cl",pa:31.0},{n:"Ricard",u:"100cl",pa:27.95},{n:"Picon",u:"100cl",pa:18.4},{n:"bulleit bourbon",u:"70cl",pa:29.45},{n:"bulleit rye",u:"70cl",pa:29.95},{n:"Rhum diplomatico",u:"70cl",pa:43.5},{n:"Rhum Zaccapa XO",u:"70cl",pa:114.9},{n:"Rhum Zaccapa 23 centenario",u:"70cl",pa:53.9},{n:"Rhum Captain Morgan",u:"70cl",pa:17.15},{n:"Sambuca",u:"70cl",pa:22.5},{n:"Suze",u:"100cl",pa:21.05},{n:"Tequila Sierra Silver",u:"70cl",pa:23.9},{n:"TALISKER",u:"70cl",pa:41.7},{n:"Vieille prune du perigord",u:"70cl",pa:20.9},{n:"Vodka Absolut",u:"70cl",pa:21.35},{n:"Vodka Smirnoff",u:"70cl",pa:15.7},{n:"Williamine la Valadiere L",u:"100cl",pa:31.1},{n:"Ciroc",u:"70cl",pa:38.5},{n:"Ciroc",u:"175cl",pa:99.95},{n:"Pampero Rhum",u:"",pa:23.95},{n:"Williamine Morand",u:"70cl",pa:37.5},{n:"COCKTALIS ALCOOL",u:"100cl",pa:46.9}]},
+{id:"minerales",nome:"Minérales",zona:"doppia",step:1,items:[{n:"Arkina",u:"100cl",pa:0.87},{n:"Bitter rouge",u:"10cl",pa:1.16},{n:"Coca Cola / light / zero",u:"33cl",pa:1.38},{n:"Coca Pet",u:"150cl",pa:2.61},{n:"Cocktalis ss alcool",u:"100cl",pa:46.9},{n:"Fanta orange",u:"33cl",pa:1.74},{n:"Jus bodyguard michel",u:"100cl",pa:2.7},{n:"Jus de fruit bodyguard",u:"20cl",pa:1.59},{n:"Jus de fruits divers",u:"20cl",pa:1.41},{n:"Jus de pomme ramseier",u:"33cl",pa:1.36},{n:"Jus d'orange",u:"100cl",pa:0.8},{n:"Jus ananas litre michel",u:"100cl",pa:2.65},{n:"Jus pomme rams. Litre",u:"100cl",pa:2.12},{n:"Queens Citron Pet",u:"150cl",pa:1.57},{n:"Queens cola Pet",u:"150cl",pa:1.57},{n:"Fanta Pet",u:"50cl",pa:1.67},{n:"REDBULL",u:"25cl",pa:1.94},{n:"Rivella rouge/blue",u:"33cl",pa:1.32},{n:"Kinley Lemon",u:"20cl",pa:1.35},{n:"Kinley Tonic",u:"20cl",pa:1.35},{n:"Kinley Tonic",u:"100cl",pa:3.05},{n:"Sirop de canne",u:"100cl",pa:10.65},{n:"Sirop citronelle",u:"100cl",pa:6.88},{n:"Sirop Fraise",u:"100cl",pa:6.88},{n:"Sirop grenadine",u:"100cl",pa:6.5},{n:"Sirop menthe",u:"100cl",pa:6.88},{n:"Sirop pêche",u:"100cl",pa:7.35},{n:"Sirop",u:"",pa:7.35},{n:"Sirop Mojto",u:"100cl",pa:8.88},{n:"Sirop Fleur de sureaux",u:"100cl",pa:7.35},{n:"Sprite",u:"33cl",pa:1.46},{n:"Thé froid  lemon",u:"100cl",pa:1.2},{n:"Thé froid Pêche",u:"100cl",pa:1.2},{n:"Arkina PET",u:"150cl",pa:1.44},{n:"Valser VC gaz/plate",u:"50cl",pa:1.17},{n:"Valser VC gaz/plate",u:"33cl",pa:1.09},{n:"Lurisia Plat/gaz",u:"50cl",pa:1.15},{n:"Lurisia Plat/gaz",u:"75cl",pa:1.18},{n:"Lur. Aran. Chin. Gass.",u:"27.5cl",pa:1.48}]},
+{id:"vins",nome:"Vins & Champagne",zona:"doppia",step:1,items:[{n:"Cht.de Duiller Œil de Perdrix",u:"75cl",pa:11.5},{n:"Cht.de Duiller Œil de Perdrix",u:"50cl",pa:6.1},{n:"Gamay de Duiller",u:"75cl",pa:9.0},{n:"Gamay de Duiller",u:"50cl",pa:6.0},{n:"Pinot gris",u:"75cl",pa:12.0},{n:"Pinot Noir Coins Perdu",u:"75cl",pa:11.7},{n:"Pinot Noir Coins Perdu",u:"50cl",pa:8.6},{n:"Dom. D`Avenex rosé",u:"50cl",pa:6.04},{n:"Dom. D`Avenex rose",u:"75cl",pa:9.29},{n:"Dom. D`Avenex Pinot N",u:"50cl",pa:7.43},{n:"Dom. D`Avenex Pinot N",u:"75cl",pa:10.21},{n:"Dom. D`Avenex Chasselas",u:"50cl",pa:6.04},{n:"Dom. D`Avenex Chasselas",u:"75cl",pa:7.89},{n:"Dom. D`Avenex Gewürtztraminer",u:"75cl",pa:11.14},{n:"Dom. D`Avenex Gamaret",u:"75cl",pa:10.93},{n:"Château du Barry",u:"75cl",pa:14.45},{n:"Vin de provence rose",u:"75cl",pa:10.0},{n:"Amarone",u:"75cl",pa:28.5},{n:"Brunello Montalcino Banfi",u:"75cl",pa:34.5},{n:"Cannonau Sardaigna",u:"75cl",pa:11.0},{n:"Chianti",u:"50cl",pa:4.4},{n:"Chianti Classico Pepoli",u:"75cl",pa:15.5},{n:"Montepulciano",u:"50cl",pa:2.5},{n:"Montefalco",u:"75cl",pa:11.8},{n:"Barbera",u:"75cl",pa:13.5},{n:"RIPASSO MONTERE",u:"75cl",pa:14.9},{n:"Vins du mois",u:"",pa:9.0},{n:"Vins du mois",u:"",pa:12.0},{n:"Gamay rosé",u:"100cl",pa:6.5},{n:"Goron",u:"100cl",pa:7.25},{n:"Montepulciano",u:"100cl",pa:3.85},{n:"Rouge Cuisine",u:"100cl",pa:2.45},{n:"Salvagnin",u:"100cl",pa:7.4},{n:"Chasselas Romand",u:"100cl",pa:6.1},{n:"Chianti",u:"100cl",pa:4.0},{n:"Prosecco",u:"75cl",pa:6.9},{n:"Laurent Perrier",u:"75cl",pa:39.9},{n:"Boizel rosé",u:"75cl",pa:37.0},{n:"Vins + Champagne",u:"",pa:437.27}]},
+{id:"pressions",nome:"Pressions",zona:"doppia",step:0.1,items:[{n:"Kro 1664 Fût plein",u:"20L",pa:105.6},{n:"Valaisane Fûts pleins",u:"20L",pa:111.0},{n:"Valaisane White IPA",u:"20L",pa:119.4},{n:"Grimbergen Ambée",u:"20L",pa:120.4},{n:"Grimbergen  blanche Fûts pleins",u:"20L",pa:107.2},{n:"Superbock",u:"20L",pa:95.4},{n:"Brooklin",u:"20L",pa:108.2},{n:"VALSER PREMIX Fûts pleins",u:"20l",pa:41.4},{n:"coca postmix Fûts pleins",u:"20l",pa:344.0},{n:"sprite postmix Fûts pleins",u:"10l",pa:146.4},{n:"fuse tea postmix Fûts pleins",u:"10l",pa:129.4},{n:"Aligal CO 2 Grande (plein)",u:"",pa:57.95},{n:"Aligal CO 2 Petite (plein)",u:"",pa:55.95},{n:"Bierre du mois",u:"",pa:2.4},{n:"Guiness",u:"33cl",pa:2.57},{n:"Coruja",u:"33cl",pa:1.76},{n:"Corona",u:"35.5cl",pa:2.17},{n:"Desperados",u:"33cl",pa:2.37},{n:"Superbock sans alco",u:"33cl",pa:1.25},{n:"Heineken",u:"25cl",pa:1.73},{n:"Grimberg Rouge",u:"25cl",pa:2.02},{n:"SMIRNOFF ICE",u:"33cl",pa:2.31},{n:"SOMERSBY",u:"33cl",pa:1.9},{n:"Superbock",u:"25cl",pa:0.85}]},
+{id:"emballage",nome:"Emballage & Café",zona:"doppia",step:1,items:[{n:"Harasses + pleines",u:"",pa:5.0},{n:"Chocofino",u:"pièce",pa:0.25},{n:"Chocolat pour café",u:"sac",pa:20.0},{n:"Suchard express",u:"pièce",pa:0.25},{n:"Menthe",u:"pièce",pa:0.11},{n:"Tilleul",u:"pièce",pa:0.11},{n:"Verveine",u:"pièce",pa:0.11},{n:"Camomille",u:"pièce",pa:0.11},{n:"Cynorrhodon",u:"pièce",pa:0.13},{n:"Thé Noir",u:"pièce",pa:0.12},{n:"Café",u:"kilo",pa:13.2},{n:"Décafeiné",u:"pièce",pa:0.34},{n:"Speculos",u:"Sachets",pa:0.04},{n:"Assugrin",u:"Sachets",pa:0.04},{n:"Sucre",u:"Cartons",pa:15.11},{n:"Thé vert",u:"pièce",pa:0.1}]},
+{id:"snacks",nome:"Snacks & Bonbons",zona:"doppia",step:1,items:[{n:"Bounty",u:"Unité",pa:0.9},{n:"Chips natures & Pap 30gr",u:"Unité",pa:0.89},{n:"Chips paprika 350gr",u:"Unité",pa:3.55},{n:"Chupa chups",u:"Unité",pa:0.37},{n:"Fraises tagada",u:"Unité",pa:1.42},{n:"Frites fizz",u:"Unité",pa:1.42},{n:"Happy cola",u:"Unité",pa:1.42},{n:"M&M's",u:"Unité",pa:0.82},{n:"Malteser",u:"Unité",pa:0.93},{n:"Mars",u:"Unité",pa:0.75},{n:"Nachos 450 g",u:"Unité",pa:2.9},{n:"Nachos nature 450g",u:"Unité",pa:1.45},{n:"Panini",u:"Unité",pa:1.2},{n:"Pizza al taglio",u:"Unité",pa:3.2},{n:"Poche ketchup",u:"Unité",pa:0.2},{n:"Poche mayo",u:"Unité",pa:0.2},{n:"mayo",u:"Unité",pa:4.0},{n:"ketchup",u:"Unité",pa:4.5},{n:"Mutarde",u:"Unité",pa:4.5},{n:"Poche moutarde",u:"Unité",pa:0.2},{n:"Pringles",u:"Unité",pa:1.15},{n:"Quaxy",u:"Unité",pa:1.42},{n:"Sauce guacamole",u:"Unité",pa:6.6},{n:"Sauce chedar",u:"Unité",pa:1.3},{n:"Sauce salsa",u:"Unité",pa:12.2},{n:"Mais PopCorn Butterfly",u:"1 Kg",pa:2.16},{n:"Snickers",u:"Unité",pa:0.9},{n:"Ttwix",u:"Unité",pa:0.77},{n:"King cône",u:"Unité",pa:2.44},{n:"Chocolate cornetto",u:"Unité",pa:1.81},{n:"Fraise cornetto",u:"Unité",pa:1.81},{n:"Vanille cornetto",u:"Unité",pa:1.81},{n:"Rocket",u:"Unité",pa:0.56},{n:"Solero",u:"Unité",pa:1.81},{n:"Haribo",u:"Unité",pa:1.18},{n:"Twister",u:"Unité",pa:1.04},{n:"Calippo",u:"Unité",pa:1.18},{n:"Magnum classic",u:"Unité",pa:1.6},{n:"Magnum almond",u:"Unité",pa:1.6},{n:"Magnum white",u:"Unité",pa:1.15},{n:"Magnum dble caramel",u:"Unité",pa:1.96},{n:"Magnum dark intense",u:"Unité",pa:2.21},{n:"Donuts Fourés",u:"Unité",pa:1.41},{n:"Donuts",u:"Unité",pa:0.7}]},
+{id:"desserts",nome:"Desserts",zona:"singola",step:1,items:[{n:"Abricot",u:"2.4 litres",pa:13.07},{n:"Assort.mini choux",u:"Pièce",pa:0.68},{n:"Assort.mini viennoiseries",u:"Pièce",pa:0.35},{n:"Ballons de table",u:"Pièce",pa:0.49},{n:"Brownies",u:"Pièce",pa:1.15},{n:"Mini Burger épautre",u:"Pièce",pa:0.6},{n:"Pizza Sns gluten",u:"Pièce",pa:3.57},{n:"Burger épautre",u:"Pièce",pa:0.6},{n:"Cassata",u:"Pièce",pa:1.07},{n:"Chocolat",u:"2.4 litres",pa:11.3},{n:"Citron vert",u:"2.4 litres",pa:10.14},{n:"Croissant précuit",u:"Pièce",pa:0.58},{n:"Café",u:"2.4 litres",pa:16.45},{n:"Flûte limoncello",u:"Pièce",pa:4.28},{n:"Fraises",u:"2.4 litres",pa:11.56},{n:"Frites",u:"kilo",pa:4.0},{n:"Fruits des bois",u:"kilo",pa:6.0},{n:"Génoise chocolat",u:"Pièce",pa:78.0},{n:"Génoise nature",u:"Pièce",pa:78.0},{n:"Macarons",u:"carton",pa:38.5},{n:"Mangue",u:"2.4 litres",pa:10.6},{n:"Mignardises",u:"Pièce",pa:0.9},{n:"Mocca",u:"2.4 litres",pa:11.56},{n:"Noix de coco",u:"2.4 litres",pa:11.3},{n:"Nuggets",u:"kilo",pa:11.72},{n:"Pain au Chocolat",u:"Pièce",pa:0.65},{n:"Mini navet",u:"Pièce",pa:0.28},{n:"Pains hot-dog",u:"Pièce",pa:0.78},{n:"Pancakes",u:"Pièce",pa:0.7},{n:"Pains sandwichs",u:"Pièce",pa:0.64},{n:"Panini",u:"Pièce",pa:1.71},{n:"Parfait mocca",u:"Pièce",pa:1.86},{n:"Pistache",u:"2.4 litres",pa:12.96},{n:"Poire william",u:"2.4 litres",pa:13.59},{n:"Profiteroles",u:"Pièce",pa:0.3},{n:"Tartes fines aux pommes",u:"Pièce",pa:1.85},{n:"Fusée",u:"Pièce",pa:0.56},{n:"Vanille",u:"5 litres",pa:22.49},{n:"Mini Croissant",u:"Pièce",pa:0.3},{n:"Pain",u:"Pièce",pa:2.8},{n:"Pain toast",u:"Pièce",pa:3.32},{n:"Pome",u:"2.4 litres",pa:10.6},{n:"Donut soucrée",u:"Pièce",pa:0.7},{n:"Dessert divers Maison",u:"Pièce",pa:1.5},{n:"Donut choco",u:"Pièce",pa:1.51}]},
+{id:"boucherie",nome:"Boucherie",zona:"singola",step:0.1,items:[{n:"Blanc de poulet",u:"kilo",pa:14.5},{n:"Bœuf aiguillette",u:"kilo",pa:26.8},{n:"Bresaola",u:"kilo",pa:41.9},{n:"Carpaccio",u:"kilo",pa:34.0},{n:"Côte d'agneau",u:"kilo",pa:20.8},{n:"Côte de veau",u:"kilo",pa:29.0},{n:"Emincé Volaille",u:"kilo",pa:13.5},{n:"Entrecôte 1er choix",u:"kilo",pa:39.0},{n:"Filet de boeuf",u:"kilo",pa:49.5},{n:"Filet mignon sanglier",u:"kilo",pa:17.95},{n:"Foie gras",u:"kilo",pa:47.5},{n:"Speck",u:"kilo",pa:23.5},{n:"Jambon epaule",u:"kilo",pa:14.4},{n:"Jambon de Parme",u:"kilo",pa:28.5},{n:"Jambon de dinde",u:"kilo",pa:18.95},{n:"Lard fumé",u:"kilo",pa:14.9},{n:"Merguez",u:"kilo",pa:13.8},{n:"Mortadelle",u:"kilo",pa:17.9},{n:"Entrecôte Parisene",u:"kilo",pa:24.95},{n:"Entrecôte Cheval",u:"kilo",pa:21.5},{n:"Foies de volaies",u:"kilo",pa:16.0},{n:"Chorizo",u:"kilo",pa:15.15},{n:"Noisette de chevreuil",u:"kilo",pa:30.5},{n:"Noix de veau",u:"kilo",pa:53.0},{n:"Poulet poitrine",u:"kilo",pa:14.8},{n:"Pancetta",u:"kilo",pa:22.95},{n:"R. Steak",u:"kilo",pa:37.0},{n:"Ravioli de cheveuil",u:"kilo",pa:14.2},{n:"Salami rustico",u:"kilo",pa:31.83},{n:"Salami piquant",u:"kilo",pa:18.9},{n:"Saucisse HOT DOG",u:"kilo",pa:13.7},{n:"Suprême poulet",u:"kilo",pa:16.9},{n:"Tartare portion",u:"kilo",pa:31.5},{n:"Travers de porc",u:"kilo",pa:17.9},{n:"Veau épaule",u:"kilo",pa:30.9},{n:"Salame de sanclier",u:"kilo",pa:32.0},{n:"Viande hamburger",u:"kilo",pa:20.5},{n:"Coppa",u:"kilo",pa:32.0},{n:"viands divers",u:"kilo",pa:20.0},{n:"Viande hachée",u:"kilo",pa:17.5}]},
+{id:"poissons",nome:"Poissons",zona:"singola",step:0.1,items:[{n:"Anchois",u:"800gr",pa:15.8},{n:"Calamari",u:"kilo",pa:8.9},{n:"Chutes saumon fumé",u:"kilo",pa:19.9},{n:"Cocktail de Crevettes",u:"kilo",pa:18.9},{n:"Dorade",u:"kilo",pa:14.5},{n:"Dos de cabillaud",u:"kilo",pa:45.0},{n:"Espadon",u:"kilo",pa:23.0},{n:"Filets de Perche",u:"kilo",pa:24.0},{n:"Filets de Pangasus",u:"kilo",pa:6.5},{n:"Fruits de mer ( Maison)",u:"kilo",pa:24.9},{n:"Gambas",u:"kilo",pa:17.0},{n:"Gambas decortique",u:"kilo",pa:18.0},{n:"Moules de Bouchot",u:"kilo",pa:8.5},{n:"Noix St Jacques",u:"kilo",pa:59.0},{n:"Poulpe",u:"kilo",pa:25.9},{n:"Saumon",u:"kilo",pa:23.0},{n:"Saumon fumé / Norvège",u:"kilo",pa:28.5},{n:"Seiches",u:"kilo",pa:12.0},{n:"Sole",u:"kilo",pa:35.0},{n:"Sticks de cabillaud",u:"kilo",pa:16.0},{n:"Filet de fera",u:"kilo",pa:28.5},{n:"Thon rose",u:"boîte",pa:11.25},{n:"Vongole",u:"kilo",pa:16.5},{n:"plat du jour",u:"kilo",pa:18.0}]},
+{id:"pates",nome:"Pâtes & Riz",zona:"singola",step:0.1,items:[{n:"Bucatini",u:"kilo",pa:2.66},{n:"Farfalle",u:"kilo",pa:3.42},{n:"Fusilli",u:"kilo",pa:2.95},{n:"Fusili Alfredo",u:"kilo",pa:3.95},{n:"Gnocchi",u:"kilo",pa:4.6},{n:"Lasagne blanche 500gr",u:"piece",pa:3.2},{n:"Lasagne portion",u:"piece",pa:5.35},{n:"Linguini fraiches",u:"kilo",pa:7.12},{n:"Linguini",u:"kilo",pa:2.66},{n:"Orechiette",u:"kilo",pa:4.38},{n:"Papardelle",u:"kilo",pa:6.6},{n:"Penne",u:"kilo",pa:6.4},{n:"Penne rigate 3kg",u:"piece",pa:9.85},{n:"Polenta",u:"kilo",pa:2.9},{n:"Rigatoni",u:"kilo",pa:2.4},{n:"Riz au jasmin",u:"kilo",pa:2.4},{n:"Risotto arborio",u:"Kilo",pa:2.9},{n:"Riz basmati",u:"kilo",pa:3.2},{n:"Riz Golden",u:"1 kilo",pa:1.2},{n:"Spaghetti vrac 3kg",u:"piece",pa:9.85},{n:"Tagliatelle fraiches",u:"kilo",pa:8.84},{n:"Tagliatelle  500gr",u:"piece",pa:2.5},{n:"Taglioni",u:"kilo",pa:7.5},{n:"Tortellini Viande",u:"kilo",pa:11.9},{n:"Tortiglioni",u:"kilo",pa:3.4},{n:"Pâtes Divers",u:"kilo",pa:4.4},{n:"Pâtes Divers frais",u:"kilo",pa:12.0}]},
+{id:"condiments",nome:"Condiments",zona:"singola",step:1,items:[{n:"Amandes effilées",u:"piece",pa:3.14},{n:"Amarenata",u:"piece",pa:12.92},{n:"Artichaut 3/1",u:"piece",pa:9.25},{n:"Biscuits savoyards",u:"piece",pa:3.14},{n:"Bouillon",u:"Kilo",pa:23.58},{n:"Bouillon de poule",u:"Kilo",pa:23.67},{n:"Brislets roulés",u:"piece",pa:0.15},{n:"Champignons",u:"kilo",pa:6.5},{n:"Chocolat",u:"kilo",pa:12.5},{n:"Condimix",u:"Boîte",pa:18.0},{n:"Confiture",u:"piece",pa:0.27},{n:"Couscous moyen",u:"kilo",pa:1.89},{n:"Crème de truffe noire",u:"400 g.",pa:23.0},{n:"Crème sandwich",u:"bi 4.7k",pa:31.6},{n:"Curry des Indes",u:"Boîte",pa:6.55},{n:"Demi glace",u:"Kilo",pa:17.98},{n:"Farine fleur",u:"kilo",pa:1.45},{n:"Farine M. Blanche",u:"kilo",pa:1.42},{n:"Fumet de poisson maison",u:"kilo",pa:12.0},{n:"Gélatine Agar-agar",u:"piece",pa:59.8},{n:"Huile d'Olive congedi",u:"25cl",pa:4.51},{n:"Huile d'Olive Speroni",u:"litre",pa:4.85},{n:"Huile Tournesol High",u:"1 Litre",pa:4.75},{n:"Jus de citron",u:"Litre",pa:3.5},{n:"Ketchup",u:"Btle",pa:12.8},{n:"Lentilles",u:"piece",pa:3.14},{n:"Maïzena",u:"Boîte",pa:10.95},{n:"Maïzena rapide",u:"Boîte",pa:14.48},{n:"Mayonnaise   portions",u:"piece",pa:0.34},{n:"Mayonnaise 4.7 kg",u:"piece",pa:20.0},{n:"Miel",u:"pièce",pa:0.41},{n:"Minestrone",u:"kilo",pa:8.0},{n:"Moutarde forte",u:"piece",pa:0.34},{n:"Moutarde forte",u:"bi 5.2k",pa:17.5},{n:"Oignons au vinaigre",u:"Boîte",pa:16.0},{n:"Olives noires",u:"boîte",pa:19.9},{n:"Olives vertes",u:"piece",pa:3.14},{n:"Origan",u:"Kilo",pa:11.0},{n:"Pignons",u:"kilo",pa:69.0},{n:"Pois chiches",u:"pièce",pa:2.5},{n:"Poivre blanc",u:"Kilo",pa:18.62},{n:"Poivre vert",u:"Boîte",pa:3.14},{n:"Poudre Aromat 120g",u:"Kilo",pa:2.9},{n:"Quinoa",u:"piece",pa:3.14},{n:"Safran moulu",u:"10 g",pa:34.5},{n:"Sauce soja",u:"piece",pa:3.14},{n:"Sel cuisine",u:"kilo",pa:0.55},{n:"Semoule di grana duro",u:"kilo",pa:1.96},{n:"Sésame",u:"piece",pa:3.3},{n:"Sucre",u:"kilo",pa:1.14},{n:"Sucre de canne",u:"Kilo",pa:1.14},{n:"Sucre glace",u:"Kilo",pa:2.55},{n:"Tabasco",u:"Btle",pa:2.9},{n:"Tomates pelées",u:"boite",pa:4.95},{n:"Tomate double concentré",u:"Boîte",pa:2.4},{n:"Tomate polpa 10kg",u:"kilo",pa:1.5},{n:"Tomates séchées",u:"piece",pa:3.14},{n:"Topping café",u:"Btle",pa:7.5},{n:"Topping caramel",u:"Btle",pa:8.75},{n:"Topping chocolat",u:"Btlle",pa:7.5},{n:"Topping fraise",u:"Btle",pa:7.5},{n:"Vin de cuisine",u:"Litre",pa:3.14},{n:"Vinaigre Aceto Balsamico",u:"Litre",pa:7.6},{n:"Vinaigre Blanc",u:"Litre",pa:1.9},{n:"Vinaigre de framboise",u:"Bt.",pa:10.35},{n:"Vinaigre rouge",u:"litre",pa:1.54},{n:"Worchesteine sauce",u:"Boîte",pa:2.77},{n:"Piments 1.7KG",u:"Boîte",pa:12.5},{n:"Viagra calabrese 106g",u:"Boîte",pa:2.0},{n:"Artichauds 3.1KG",u:"Boîte",pa:23.0},{n:"Bolets seches  500 g",u:"saches",pa:42.0},{n:"Antipasto Calab. 3.1KG",u:"Boîte",pa:20.0},{n:"Antipasto Mont. 3.1 KG",u:"Boîte",pa:22.0}]},
+{id:"fromages",nome:"Fromages & Œufs",zona:"singola",step:0.1,items:[{n:"Beurre",u:"Kilo",pa:13.45},{n:"Beurre Portion",u:"pièce",pa:0.2},{n:"Burratina 250gr",u:"pièce",pa:4.9},{n:"Cheddar",u:"Kilo",pa:11.0},{n:"Chèvre",u:"Kilo",pa:13.8},{n:"Crème 0.25",u:"piece",pa:5.8},{n:"Crème 0.35",u:"piece",pa:6.1},{n:"Crème à café",u:"Carton",pa:9.9},{n:"Crème chantilly",u:"pièce",pa:9.9},{n:"Feta",u:"Kilo",pa:12.5},{n:"Gorgonzola",u:"Kilo",pa:9.35},{n:"Grana padano bloc",u:"Kilo",pa:15.3},{n:"Grana Padano rapé",u:"Kilo",pa:12.5},{n:"Gruyère",u:"Kilo",pa:16.4},{n:"Lait",u:"Litre",pa:1.24},{n:"Levure",u:"pièce",pa:0.25},{n:"Mascarpone",u:"pièce",pa:6.8},{n:"Mayonnaise bidon 5 l",u:"5 litre",pa:16.5},{n:"Mozzarella boule Bufala",u:"Kilo",pa:14.4},{n:"Mozz dolce latteJulienne",u:"Kilo",pa:6.5},{n:"Mozzarelline",u:"kilo",pa:12.95},{n:"Œuf",u:"pièce",pa:0.31},{n:"Pâte Feuilletée",u:"Rouleau",pa:32.95},{n:"Ricotta",u:"kilo",pa:9.4},{n:"Roquefort",u:"Kilo",pa:29.9},{n:"Taleggio",u:"Kilo",pa:14.0},{n:"Tilsit",u:"Kilo",pa:13.8},{n:"Tofu",u:"Kilo",pa:17.3},{n:"Kiri",u:"Carton",pa:30.17},{n:"Babibel",u:"Carton",pa:59.4},{n:"Provolone",u:"Kilo",pa:13.8},{n:"Jaune d'œuf",u:"Litre",pa:13.8},{n:"Sauce hollandaise",u:"piece",pa:13.8},{n:"Sauce bearnaise",u:"piece",pa:13.8},{n:"Double creme",u:"litre",pa:13.8},{n:"Lait coco",u:"litre",pa:13.8},{n:"Yogourt mélange",u:"pièce",pa:0.45}]},
+{id:"fruits",nome:"Fruits & Légumes",zona:"singola",step:0.1,items:[{n:"Ail",u:"Kilo",pa:7.2},{n:"Ananas",u:"Kilo",pa:8.75},{n:"Asperges",u:"kilo",pa:10.75},{n:"Aubergine",u:"Kilo",pa:4.5},{n:"Avocat",u:"Pièce",pa:2.0},{n:"Banane",u:"Kilo",pa:2.9},{n:"Basilic",u:"kilo",pa:30.75},{n:"Betterave chioggia",u:"kilo",pa:10.2},{n:"Betterave cuite",u:"kilo",pa:10.2},{n:"Bolets",u:"Kilo",pa:14.5},{n:"Brocolis congelés",u:"Kilo",pa:5.0},{n:"Câpres",u:"boite",pa:10.7},{n:"Carotte",u:"Kilo",pa:1.8},{n:"Cerneaux de noix",u:"kilo",pa:22.0},{n:"Champignons de Paris",u:"kilo",pa:7.0},{n:"Champignons mélangés",u:"Kilo",pa:24.0},{n:"Chanterelles",u:"boîte",pa:13.75},{n:"Choux blancs",u:"kilo",pa:3.5},{n:"Choux rouges",u:"kilo",pa:3.5},{n:"Citron",u:"Kilo",pa:3.6},{n:"Citrons verts",u:"kilo",pa:8.5},{n:"Clémentines",u:"kilo",pa:8.5},{n:"Clous de Giroffle",u:"boîte",pa:8.0},{n:"Cœur d' Artichauts",u:"kilo",pa:6.38},{n:"Concombre",u:"piece",pa:2.2},{n:"Cornichons",u:"boîte",pa:21.25},{n:"Courgette",u:"Kilo",pa:4.5},{n:"Echalotte",u:"Kilo",pa:7.5},{n:"Endive",u:"kilo",pa:5.7},{n:"Epinards",u:"kilo",pa:4.29},{n:"Feuille de chêne",u:"pièce",pa:1.8},{n:"Fraises",u:"500 gr",pa:5.9},{n:"Framboises surg",u:"kilo",pa:6.9},{n:"Haricots verts congelés",u:"Kilo",pa:4.6},{n:"Jardinère",u:"Kilo",pa:5.2},{n:"Kiwi",u:"kilo",pa:8.5},{n:"Maïs",u:"boîte",pa:4.4},{n:"Mangue",u:"PS",pa:8.5},{n:"Cubes mangues surg",u:"kilo",pa:8.5},{n:"Myrtilles surg",u:"kilo",pa:10.45},{n:"Melons",u:"kilo",pa:10.45},{n:"Morilles séchées",u:"kilo",pa:132.0},{n:"Noix",u:"kilo",pa:10.0},{n:"Oignons",u:"Kilo",pa:1.8},{n:"Oignons rouges",u:"Kilo",pa:4.5},{n:"Oranges",u:"Kilo",pa:2.8},{n:"Petits pois congelés",u:"Kilo",pa:4.9},{n:"Poireau entier",u:"Kilo",pa:5.5},{n:"Poivrons",u:"Kilo",pa:4.48},{n:"Poivrons mélangés",u:"Kilo",pa:4.48},{n:"Pommes de terre",u:"Kilo",pa:1.4},{n:"Pommes Golden",u:"Kilo",pa:2.3},{n:"Raisins noirs",u:"Kilo",pa:6.5},{n:"Roquette",u:"kilo",pa:14.5},{n:"Salade  rampon suisse",u:"kilo",pa:22.0},{n:"Salade celeris hero",u:"2 kilos",pa:10.1},{n:"Salade de fruits frais",u:"kilo",pa:15.0},{n:"Salade Iceberg",u:"pièce",pa:1.78},{n:"Salade verte",u:"pièce",pa:1.78},{n:"Tomates cerises",u:"Kilo",pa:7.5},{n:"Tomates",u:"Kilo",pa:2.9},{n:"Trevise suisse",u:"kilo",pa:5.5}]}];
+
+const PASSWORD = "1111";
+
+const T = {
+  it:{
+    appCat:"Inventario", bar:"BAR", resto:"RESTO", cuisine:"CUISINE", counted:"Contati",
+    search:"Cerca prodotto", buy:"Acquisto",
+    tipDec:"I tasti + e − cambiano la quantità di 0,10. Puoi anche scrivere a mano.",
+    tipInt:"I tasti + e − cambiano la quantità di 1. Puoi anche scrivere a mano.",
+    reset:"Azzera", export:"Esporta PDF",
+    exTitle:"Esporta inventario", exDesc:"Crea il PDF della conta da inviare alla contabile.",
+    exHint:"Tocca Crea PDF. Si apre la finestra di stampa → alla voce Destinazione scegli «Salva come PDF» → Salva.",
+    exRecap:"RIEPILOGO", exPdf:"PDF questa categoria", exPdfAll:"PDF tutte le categorie", exClose:"Chiudi", exCopy:"Copia testo",
+    exSteps:"Per inviarlo: nella finestra di stampa scegli «Salva come PDF» (non una stampante), salva sul Desktop, poi allega il file a un'email.",
+    setTitle:"Impostazioni", setLang:"Lingua", setPrice:"Aggiorna prezzi d'acquisto",
+    setClose:"Chiudi", priceCat:"Categoria", resetPrices:"Ripristina prezzi categoria",
+    rsTitle:"Azzerare tutto?", rsDesc:"Tutte le quantità di questa categoria verranno cancellate.",
+    rsCancel:"Annulla", rsOk:"Sì, azzera",
+    noQty:"Nessuna quantità inserita.", tProd:"Prodotto", tTot:"Totale", confDate:"Conta del",
+    ttSaved:"Salvato ✓", ttReset:"Categoria azzerata", ttCopied:"Copiato ✓",
+    ttPriceSaved:"Prezzo aggiornato ✓", ttPriceReset:"Prezzi ripristinati ✓", ttPrint:"Apertura stampa…",
+    pwdAsk:"Inserisci la password per modificare i prezzi", pwdAskReset:"Inserisci la password per azzerare",
+    pwdWrong:"Password errata", pwdOk:"Sblocca",
+  },
+  fr:{
+    appCat:"Inventaire", bar:"BAR", resto:"RESTO", cuisine:"CUISINE", counted:"Comptés",
+    search:"Chercher un produit", buy:"Achat",
+    tipDec:"Les touches + et − changent la quantité de 0,10. Vous pouvez aussi saisir à la main.",
+    tipInt:"Les touches + et − changent la quantité de 1. Vous pouvez aussi saisir à la main.",
+    reset:"Effacer", export:"Exporter PDF",
+    exTitle:"Exporter l'inventaire", exDesc:"Créez le PDF du comptage à envoyer au comptable.",
+    exHint:"Touchez Créer PDF. La fenêtre d'impression s'ouvre → dans Destination choisissez « Enregistrer en PDF » → Enregistrer.",
+    exRecap:"RÉCAPITULATIF", exPdf:"PDF cette catégorie", exPdfAll:"PDF toutes les catégories", exClose:"Fermer", exCopy:"Copier le texte",
+    exSteps:"Pour l'envoyer : dans la fenêtre d'impression choisissez « Enregistrer en PDF », enregistrez sur le Bureau, puis joignez le fichier à un e-mail.",
+    setTitle:"Réglages", setLang:"Langue", setPrice:"Mettre à jour les prix d'achat",
+    setClose:"Fermer", priceCat:"Catégorie", resetPrices:"Réinitialiser les prix",
+    rsTitle:"Tout effacer ?", rsDesc:"Toutes les quantités de cette catégorie seront supprimées.",
+    rsCancel:"Annuler", rsOk:"Oui, effacer",
+    noQty:"Aucune quantité saisie.", tProd:"Produit", tTot:"Total", confDate:"Comptage du",
+    ttSaved:"Enregistré ✓", ttReset:"Catégorie effacée", ttCopied:"Copié ✓",
+    ttPriceSaved:"Prix mis à jour ✓", ttPriceReset:"Prix réinitialisés ✓", ttPrint:"Ouverture de l'impression…",
+    pwdAsk:"Saisissez le mot de passe pour modifier les prix", pwdAskReset:"Saisissez le mot de passe pour effacer",
+    pwdWrong:"Mot de passe incorrect", pwdOk:"Déverrouiller",
+  },
+  en:{
+    appCat:"Inventory", bar:"BAR", resto:"RESTO", cuisine:"CUISINE", counted:"Counted",
+    search:"Search product", buy:"Cost",
+    tipDec:"The + and − keys change the quantity by 0.10. You can also type manually.",
+    tipInt:"The + and − keys change the quantity by 1. You can also type manually.",
+    reset:"Clear", export:"Export PDF",
+    exTitle:"Export inventory", exDesc:"Create the count PDF to send to the accountant.",
+    exHint:"Tap Create PDF. The print window opens → under Destination choose «Save as PDF» → Save.",
+    exRecap:"SUMMARY", exPdf:"PDF this category", exPdfAll:"PDF all categories", exClose:"Close", exCopy:"Copy text",
+    exSteps:"To send it: in the print window choose «Save as PDF» (not a printer), save to the Desktop, then attach the file to an email.",
+    setTitle:"Settings", setLang:"Language", setPrice:"Update purchase prices",
+    setClose:"Close", priceCat:"Category", resetPrices:"Reset category prices",
+    rsTitle:"Clear everything?", rsDesc:"All quantities for this category will be deleted.",
+    rsCancel:"Cancel", rsOk:"Yes, clear",
+    noQty:"No quantity entered.", tProd:"Product", tTot:"Total", confDate:"Count of",
+    ttSaved:"Saved ✓", ttReset:"Category cleared", ttCopied:"Copied ✓",
+    ttPriceSaved:"Price updated ✓", ttPriceReset:"Prices reset ✓", ttPrint:"Opening print…",
+    pwdAsk:"Enter the password to edit prices", pwdAskReset:"Enter the password to clear",
+    pwdWrong:"Wrong password", pwdOk:"Unlock",
+  }
+};
+
+const LANG_KEY = "tbh_lang_v2";
+let lang = "it";
+let catIdx = 0;
+let zone = "bar";
+let counts = {};   // counts[catId] = {bar:{},resto:{}}  oppure {single:{}}
+let prezzi = {};   // prezzi[catId] = {idx:prezzo}
+let priceUnlocked = false;
+
+function L(){ return T[lang]; }
+function CAT(){ return CATEGORIE[catIdx]; }
+function keyCounts(){ return "tbh_counts_v2"; }
+function keyPrezzi(){ return "tbh_prezzi_v2"; }
+
+/* --- PERSISTENZA --- */
+function save(){
+  try{
+    localStorage.setItem(keyCounts(), JSON.stringify(counts));
+    document.getElementById('saveStatus').textContent = L().ttSaved;
+  }catch(e){ document.getElementById('saveStatus').textContent = "!"; }
+}
+function savePrezzi(){
+  try{ localStorage.setItem(keyPrezzi(), JSON.stringify(prezzi)); }catch(e){}
+}
+function load(){
+  try{ const r=localStorage.getItem(keyCounts()); if(r) counts=JSON.parse(r); }catch(e){ counts={}; }
+  try{ const p=localStorage.getItem(keyPrezzi()); if(p) prezzi=JSON.parse(p); }catch(e){ prezzi={}; }
+  try{ const l=localStorage.getItem(LANG_KEY); if(l && T[l]) lang=l; }catch(e){}
+}
+
+function ensureCat(){
+  const id=CAT().id;
+  if(!counts[id]) counts[id] = CAT().zona==='doppia' ? {bar:{},resto:{}} : {single:{}};
+  if(CAT().zona==='doppia'){
+    if(!counts[id].bar) counts[id].bar={};
+    if(!counts[id].resto) counts[id].resto={};
+  }else{
+    if(!counts[id].single) counts[id].single={};
+  }
+  if(!prezzi[id]) prezzi[id]={};
+}
+
+/* --- PREZZO EFFETTIVO --- */
+function prezzoDi(idx){
+  const id=CAT().id;
+  const p=prezzi[id] ? prezzi[id][idx] : undefined;
+  return (p!==undefined && p!==null && p!=="") ? Number(p) : CAT().items[idx].pa;
+}
+
+/* --- FILTRO NUMERICO --- */
+function filtraNumero(input){
+  let v=input.value.replace(/,/g,'.').replace(/[^0-9.]/g,'');
+  const i=v.indexOf('.');
+  if(i!==-1) v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');
+  input.value=v;
+}
+
+/* --- ZONA ATTIVA --- */
+function activeStore(){
+  const id=CAT().id;
+  if(CAT().zona==='doppia') return counts[id][zone];
+  return counts[id].single;
+}
+
+/* --- RENDER --- */
+function render(){
+  ensureCat();
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const list=document.getElementById('list');
+  list.innerHTML="";
+  const store=activeStore();
+  const modeClass = CAT().zona==='doppia' ? (zone+'-mode') : 'single-mode';
+  let shown=0;
+  CAT().items.forEach((p,idx)=>{
+    if(q && !p.n.toLowerCase().includes(q)) return;
+    shown++;
+    const val=store[idx];
+    const hasVal=val!==undefined&&val!==null&&val!=="";
+    const row=document.createElement('div');
+    row.className="item "+modeClass+(hasVal?" counted":"");
+    row.innerHTML=
+      '<div class="item-num">'+(idx+1)+'</div>'+
+      '<div class="item-info">'+
+        '<div class="item-name">'+p.n+'</div>'+
+        '<div class="item-meta"><span class="ref">'+(p.u||'-')+'</span>'+L().buy+': CHF '+prezzoDi(idx).toFixed(2)+'</div>'+
+      '</div>'+
+      '<div class="qty-box">'+
+        '<button class="qty-btn" onclick="step('+idx+',-1)">−</button>'+
+        '<input class="qty-input '+(hasVal?'has-val':'')+'" type="text" inputmode="decimal" '+
+               'value="'+(hasVal?val:'')+'" placeholder="0" '+
+               'oninput="filtraNumero(this)" onchange="setQty('+idx+',this.value)" onfocus="this.select()">'+
+        '<button class="qty-btn" onclick="step('+idx+',1)">+</button>'+
+      '</div>';
+    list.appendChild(row);
+  });
+  if(shown===0) list.innerHTML='<div class="empty-search">— 0 —</div>';
+  updateProgress();
+}
+
+function setQty(idx,value){
+  const store=activeStore();
+  const v=String(value).trim().replace(',','.');
+  if(v===""||isNaN(parseFloat(v))) delete store[idx];
+  else store[idx]=parseFloat(v);
+  save(); render();
+}
+function step(idx,delta){
+  const store=activeStore();
+  const st=CAT().step;
+  const cur=store[idx]||0;
+  let next=Math.round((cur+delta*st)*100)/100;
+  if(next<0) next=0;
+  if(next===0) delete store[idx];
+  else store[idx]=next;
+  save(); render();
+}
+function switchZone(z){
+  const doppia = CAT().zona==='doppia';
+  // blocca click su schede non pertinenti alla categoria
+  if(doppia && z==='single') return;
+  if(!doppia && z!=='single') return;
+  zone=z;
+  buildTabs();
+  updateProgress();
+  render();
+}
+
+function updateProgress(){
+  ensureCat();
+  const id=CAT().id;
+  const total=CAT().items.length;
+  let done;
+  if(CAT().zona==='doppia'){
+    const dB=Object.keys(counts[id].bar).length;
+    const dR=Object.keys(counts[id].resto).length;
+    document.getElementById('badgeBar').textContent=dB;
+    document.getElementById('badgeResto').textContent=dR;
+    done=zone==='bar'?dB:dR;
+  }else{
+    done=Object.keys(counts[id].single).length;
+    document.getElementById('badgeSingle') && (document.getElementById('badgeSingle').textContent=done);
+  }
+  document.getElementById('progText').textContent=done+" / "+total;
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('progPct').textContent=pct+"%";
+  document.getElementById('progBar').style.width=pct+"%";
+}
+
+/* --- CATEGORIA --- */
+function buildCatSelect(){
+  const sel=document.getElementById('catSelect');
+  sel.innerHTML="";
+  CATEGORIE.forEach((c,i)=>{
+    const o=document.createElement('option');
+    o.value=i; o.textContent=c.nome+"  ("+c.items.length+")";
+    sel.appendChild(o);
+  });
+  sel.value=catIdx;
+}
+function buildTabs(){
+  const tabs=document.getElementById('tabs');
+  const doppia = CAT().zona==='doppia';
+  tabs.className="tabs";
+  // 3 schede SEMPRE presenti: Bar | Resto | Cuisine.
+  // Attive solo quelle che hanno senso per la categoria corrente.
+  const tBar = doppia, tResto = doppia, tCuisine = !doppia;
+  tabs.innerHTML=
+    '<button class="tab bar'+(tBar?'':' disabled')+(zone==='bar'&&tBar?' active':'')+'" '+
+      'data-zone="bar" '+(tBar?'onclick="switchZone(\'bar\')"':'')+'>'+
+      '<span>'+L().bar+'</span> <span class="badge" id="badgeBar">0</span></button>'+
+    '<button class="tab resto'+(tResto?'':' disabled')+(zone==='resto'&&tResto?' active':'')+'" '+
+      'data-zone="resto" '+(tResto?'onclick="switchZone(\'resto\')"':'')+'>'+
+      '<span>'+L().resto+'</span> <span class="badge" id="badgeResto">0</span></button>'+
+    '<button class="tab cuisine'+(tCuisine?'':' disabled')+(zone==='single'&&tCuisine?' active':'')+'" '+
+      'data-zone="single" '+(tCuisine?'onclick="switchZone(\'single\')"':'')+'>'+
+      '<span>'+L().cuisine+'</span> <span class="badge" id="badgeSingle">0</span></button>';
+}
+function changeCategoria(i){
+  catIdx=parseInt(i,10);
+  // zona iniziale corretta: bar per le bevande, single (cuisine) per la cucina
+  zone = CAT().zona==='doppia' ? 'bar' : 'single';
+  buildTabs();
+  document.getElementById('search').value="";
+  updateTip();
+  updateProgress();
+  render();
+}
+function updateTip(){
+  document.getElementById('tipBar').textContent = CAT().step<1 ? L().tipDec : L().tipInt;
+}
+
+/* --- LINGUA --- */
+function applyLang(){
+  const t=L();
+  document.documentElement.lang=lang;
+  document.getElementById('hCat').textContent=t.appCat;
+  document.getElementById('lblCounted').textContent=t.counted;
+  document.getElementById('search').placeholder=t.search;
+  document.getElementById('btnReset').textContent=t.reset;
+  document.getElementById('btnExport').textContent=t.export;
+  document.getElementById('exTitle').textContent=t.exTitle;
+  document.getElementById('exDesc').textContent=t.exDesc;
+  document.getElementById('exHint').textContent=t.exHint;
+  document.getElementById('exRecap').textContent=t.exRecap;
+  document.getElementById('exSteps').textContent=t.exSteps;
+  document.getElementById('exBtnPdf').textContent=t.exPdf;document.getElementById('exBtnPdfAll').textContent=t.exPdfAll;
+  document.getElementById('exBtnClose').textContent=t.exClose;
+  document.getElementById('exBtnCopy').textContent=t.exCopy;
+  document.getElementById('setTitle').textContent=t.setTitle;
+  document.getElementById('setLangLabel').textContent=t.setLang;
+  document.getElementById('setPriceLabel').textContent=t.setPrice;
+  document.getElementById('setBtnClose').textContent=t.setClose;
+  document.getElementById('rsTitle').textContent=t.rsTitle;
+  document.getElementById('rsDesc').textContent=t.rsDesc;
+  document.getElementById('rsCancel').textContent=t.rsCancel;
+  document.getElementById('rsOk').textContent=t.rsOk;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  buildTabs(); updateTip(); render();
+}
+function setLang(l){
+  lang=l;
+  try{ localStorage.setItem(LANG_KEY,l); }catch(e){}
+  applyLang();
+}
+
+/* --- IMPOSTAZIONI / PREZZI (con password) --- */
+function openSettings(){
+  priceUnlocked=false;
+  renderPriceArea();
+  document.getElementById('settingsModal').classList.add('show');
+}
+function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }
+
+function renderPriceArea(){
+  const area=document.getElementById('priceArea');
+  if(!priceUnlocked){
+    area.innerHTML=
+      '<div class="locked">'+
+        '<div>'+L().pwdAsk+'</div>'+
+        '<input class="pwd-input" id="pwdPrice" type="password" inputmode="numeric" '+
+               'maxlength="8" placeholder="••••">'+
+        '<button class="m-primary" style="width:100%;padding:12px;border:none;border-radius:9px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer" '+
+                'onclick="tryUnlockPrices()">'+L().pwdOk+'</button>'+
+      '</div>';
+    return;
+  }
+  // sbloccato: selettore categoria + lista prezzi
+  let opts="";
+  CATEGORIE.forEach((c,i)=>{ opts+='<option value="'+i+'"'+(i===catIdx?' selected':'')+'>'+c.nome+'</option>'; });
+  area.innerHTML=
+    '<select class="price-cat-sel" id="priceCatSel" onchange="renderPriceList()">'+opts+'</select>'+
+    '<input type="text" id="priceSearch" placeholder="'+L().search+'" '+
+      'style="width:100%;padding:9px 12px;font-size:14px;border:1px solid rgba(15,14,12,.25);border-radius:8px;background:var(--paper);font-family:inherit;margin-bottom:8px">'+
+    '<div class="price-list" id="priceList"></div>'+
+    '<button class="m-ghost" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:9px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" '+
+            'onclick="resetPricesCat()">'+L().resetPrices+'</button>';
+  document.getElementById('priceSearch').addEventListener('input',renderPriceList);
+  renderPriceList();
+}
+function tryUnlockPrices(){
+  const v=document.getElementById('pwdPrice').value;
+  if(v===PASSWORD){ priceUnlocked=true; renderPriceArea(); }
+  else{ showToast(L().pwdWrong); document.getElementById('pwdPrice').value=""; }
+}
+function renderPriceList(){
+  const ci=parseInt(document.getElementById('priceCatSel').value,10);
+  const cat=CATEGORIE[ci];
+  const q=(document.getElementById('priceSearch').value||"").trim().toLowerCase();
+  const box=document.getElementById('priceList');
+  box.innerHTML="";
+  if(!prezzi[cat.id]) prezzi[cat.id]={};
+  cat.items.forEach((p,idx)=>{
+    if(q && !p.n.toLowerCase().includes(q)) return;
+    const pr=prezzi[cat.id][idx];
+    const val=(pr!==undefined&&pr!==null&&pr!=="")?Number(pr):p.pa;
+    const row=document.createElement('div');
+    row.className="price-row";
+    row.innerHTML=
+      '<div class="price-name">'+p.n+'</div>'+
+      '<span class="price-chf">CHF</span>'+
+      '<input class="price-input" type="text" inputmode="decimal" value="'+val.toFixed(2)+'" '+
+             'oninput="filtraNumero(this)" onchange="setPrezzo(\''+cat.id+'\','+idx+',this.value)">';
+    box.appendChild(row);
+  });
+}
+function setPrezzo(catId,idx,value){
+  if(!prezzi[catId]) prezzi[catId]={};
+  const v=String(value).trim().replace(',','.');
+  if(v===""||isNaN(parseFloat(v))) delete prezzi[catId][idx];
+  else prezzi[catId][idx]=parseFloat(v);
+  savePrezzi();
+  render();
+  showToast(L().ttPriceSaved);
+}
+function resetPricesCat(){
+  const ci=parseInt(document.getElementById('priceCatSel').value,10);
+  const catId=CATEGORIE[ci].id;
+  prezzi[catId]={};
+  savePrezzi();
+  renderPriceList();
+  render();
+  showToast(L().ttPriceReset);
+}
+
+/* --- EXPORT --- */
+function buildRows(){
+  ensureCat();
+  const id=CAT().id;
+  return CAT().items.map((p,idx)=>{
+    if(CAT().zona==='doppia'){
+      const b=counts[id].bar[idx], r=counts[id].resto[idx];
+      const bv=(b!==undefined&&b!==null&&b!=="")?b:"";
+      const rv=(r!==undefined&&r!==null&&r!=="")?r:"";
+      const tot=(bv===""&&rv==="")?"":((Number(b)||0)+(Number(r)||0));
+      return {n:idx+1,nome:p.n,unita:p.u,pa:prezzoDi(idx),bar:bv,resto:rv,tot:tot,doppia:true};
+    }else{
+      const s=counts[id].single[idx];
+      const sv=(s!==undefined&&s!==null&&s!=="")?s:"";
+      return {n:idx+1,nome:p.n,unita:p.u,pa:prezzoDi(idx),qta:sv,doppia:false};
+    }
+  });
+}
+function openExport(){
+  ensureCat();
+  const id=CAT().id;
+  let summ;
+  if(CAT().zona==='doppia'){
+    summ='Bar '+Object.keys(counts[id].bar).length+' · Resto '+Object.keys(counts[id].resto).length;
+  }else{
+    summ=L().counted+' '+Object.keys(counts[id].single).length;
+  }
+  document.getElementById('exportSummary').textContent=summ;
+  document.getElementById('exportPreview').textContent=buildRiepilogo();
+  document.getElementById('exportModal').classList.add('show');
+}
+function closeExport(){ document.getElementById('exportModal').classList.remove('show'); }
+
+function buildRiepilogo(){
+  const d=new Date();
+  const loc=lang==='en'?'en-GB':(lang==='fr'?'fr-FR':'it-IT');
+  const dataStr=d.toLocaleDateString(loc,{day:'2-digit',month:'2-digit',year:'numeric'});
+  let t="INVENTARIO "+CAT().nome.toUpperCase()+" — TBH\n"+L().confDate+" "+dataStr+"\n";
+  t+="------------------------------\n";
+  let n=0;
+  buildRows().forEach(r=>{
+    if(r.doppia){
+      if(r.bar!==""||r.resto!==""){
+        n++;
+        const b=r.bar===""?"0":String(r.bar).replace('.',',');
+        const rr=r.resto===""?"0":String(r.resto).replace('.',',');
+        const tt=String(r.tot).replace('.',',');
+        t+=r.nome+": "+b+" / "+rr+" / "+tt+"\n";
+      }
+    }else{
+      if(r.qta!==""){
+        n++;
+        t+=r.nome+": "+String(r.qta).replace('.',',')+"\n";
+      }
+    }
+  });
+  t+="------------------------------\n";
+  t+=L().counted+": "+n+" / "+CAT().items.length;
+  if(n===0) return L().noQty;
+  return t;
+}
+function copyRiepilogo(){
+  const text=buildRiepilogo();
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>showToast(L().ttCopied)).catch(()=>fallbackCopy(text));
+  }else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); showToast(L().ttCopied); }catch(e){}
+  document.body.removeChild(ta);
+}
+
+/* Costruisce il blocco HTML stampabile di UNA categoria (indice ci).
+   pageBreak=true → ogni categoria comincia su pagina nuova. */
+function buildCatBlock(ci, pageBreak){
+  const c = CATEGORIE[ci];
+  const id = c.id;
+  const doppia = c.zona==='doppia';
+  // assicuro che il counts esista anche per categorie non ancora aperte
+  if(!counts[id]) counts[id] = doppia ? {bar:{},resto:{}} : {single:{}};
+  const dB = doppia ? Object.keys(counts[id].bar||{}).length : 0;
+  const dR = doppia ? Object.keys(counts[id].resto||{}).length : 0;
+  const dS = !doppia ? Object.keys(counts[id].single||{}).length : 0;
+  const tot = c.items.length;
+  let trs="";
+  c.items.forEach((p,idx)=>{
+    const pa = (prezzi[id] && prezzi[id][idx]!==undefined && prezzi[id][idx]!==null && prezzi[id][idx]!=="")
+               ? Number(prezzi[id][idx]) : p.pa;
+    if(doppia){
+      const b=counts[id].bar[idx], r=counts[id].resto[idx];
+      const bv=(b!==undefined&&b!==null&&b!=="")?b:"–";
+      const rv=(r!==undefined&&r!==null&&r!=="")?r:"–";
+      const tv=(bv==="–"&&rv==="–")?"–":((Number(b)||0)+(Number(r)||0));
+      trs+='<tr><td>'+(idx+1)+'</td><td>'+p.n+'</td><td>'+(p.u||'-')+'</td>'+
+           '<td class="num">'+bv+'</td><td class="num">'+rv+'</td><td class="num">'+tv+'</td></tr>';
+    }else{
+      const s=counts[id].single[idx];
+      const sv=(s!==undefined&&s!==null&&s!=="")?s:"–";
+      trs+='<tr><td>'+(idx+1)+'</td><td>'+p.n+'</td><td>'+(p.u||'-')+'</td><td class="num">'+sv+'</td></tr>';
+    }
+  });
+  const head = doppia
+    ? '<th>#</th><th>'+L().tProd+'</th><th>Unité</th><th>Qté Bar</th><th>Qté Resto</th><th>Qté '+L().tTot+'</th>'
+    : '<th>#</th><th>'+L().tProd+'</th><th>Unité</th><th>Qté '+L().cuisine+'</th>';
+  const sub = doppia
+    ? 'Bar: '+dB+'/'+tot+' · Resto: '+dR+'/'+tot
+    : L().cuisine+': '+dS+'/'+tot;
+  const breakCls = pageBreak ? ' class="p-break"' : '';
+  return '<section'+breakCls+'>'+
+    '<div class="p-title">'+c.nome+' — The Bowling Hôtel</div>'+
+    '<div class="p-sub">'+sub+'</div>'+
+    '<table class="p-table"><thead><tr>'+head+'</tr></thead><tbody>'+trs+'</tbody></table>'+
+    '</section>';
+}
+
+function printPDF(mode){
+  const d=new Date();
+  const loc=lang==='en'?'en-GB':(lang==='fr'?'fr-FR':'it-IT');
+  const dataStr=d.toLocaleDateString(loc,{day:'2-digit',month:'long',year:'numeric'});
+  let body = "";
+  if(mode==='all'){
+    // copertina + 13 categorie, una per pagina
+    body += '<section class="p-cover">'+
+      '<div class="p-cover-title">Inventario completo</div>'+
+      '<div class="p-cover-sub">The Bowling Hôtel</div>'+
+      '<div class="p-cover-date">'+L().confDate+' '+dataStr+'</div>'+
+      '<div class="p-cover-list">';
+    CATEGORIE.forEach((c,i)=>{
+      const id=c.id;
+      const doppia=c.zona==='doppia';
+      let cnt = 0;
+      if(counts[id]){
+        if(doppia){
+          cnt = new Set([...Object.keys(counts[id].bar||{}),...Object.keys(counts[id].resto||{})]).size;
+        }else{
+          cnt = Object.keys(counts[id].single||{}).length;
+        }
+      }
+      body += '<div class="p-cover-row"><span>'+(i+1)+'. '+c.nome+'</span><span>'+cnt+' / '+c.items.length+'</span></div>';
+    });
+    body += '</div></section>';
+    CATEGORIE.forEach((c,i)=>{
+      body += buildCatBlock(i, true);  // page break su ogni categoria
+    });
+  }else{
+    // singola categoria
+    body += '<div class="p-doc-head">'+L().confDate+' '+dataStr+'</div>';
+    body += buildCatBlock(catIdx, false);
+  }
+  body += '<div class="p-foot">The Bowling Hôtel — Inventario.</div>';
+  document.getElementById('printArea').innerHTML = body;
+  showToast(L().ttPrint);
+  setTimeout(()=>window.print(),300);
+}
+
+/* --- RESET (con password) --- */
+function confirmReset(){
+  document.getElementById('rsPwdArea').innerHTML=
+    '<div style="text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:6px">'+L().pwdAskReset+'</div>'+
+    '<input class="pwd-input" id="pwdReset" type="password" inputmode="numeric" maxlength="8" placeholder="••••">';
+  document.getElementById('resetModal').classList.add('show');
+}
+function closeReset(){ document.getElementById('resetModal').classList.remove('show'); }
+function tryReset(){
+  const v=document.getElementById('pwdReset').value;
+  if(v!==PASSWORD){ showToast(L().pwdWrong); document.getElementById('pwdReset').value=""; return; }
+  ensureCat();
+  const id=CAT().id;
+  counts[id]= CAT().zona==='doppia' ? {bar:{},resto:{}} : {single:{}};
+  save(); render(); closeReset();
+  showToast(L().ttReset);
+}
+
+/* --- TOAST --- */
+let toastTimer=null;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+/* --- INIT --- */
+document.getElementById('search').addEventListener('input',render);
+load();
+buildCatSelect();
+applyLang();
+buildTabs();
+updateTip();
+render();
+</script>
+</body>
+</html>
