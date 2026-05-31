@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0f0e0c">
 <title>TBH · Inventario</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --ink:#0f0e0c; --paper:#f4efe4; --paper-2:#e7ddc8;
@@ -49,11 +50,13 @@
   }
   .tab .badge{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:rgba(244,239,228,.15)}
   .tab.active.bar{color:#fff;border-bottom-color:var(--bar);background:#2a1410}
+  .tab.active.cave{color:#fff;border-bottom-color:#7a2408;background:#1f0e08}
   .tab.active.resto{color:#fff;border-bottom-color:var(--resto);background:#0f2418}
   .tab.active.cuisine{color:#fff;border-bottom-color:var(--accent);background:#2a2410}
   .tab.active .badge{background:var(--accent);color:var(--ink)}
   .tab.disabled{opacity:.32;cursor:default}
   .tab.disabled .badge{display:none}
+  .item.cave-mode .qty-input.has-val{background:#ffdcc0;border-color:#7a2408}
 
   .searchbar{padding:10px 16px;background:var(--paper-2);border-bottom:1px solid rgba(15,14,12,.12);position:sticky;top:0;z-index:40}
   .searchbar input{
@@ -235,6 +238,21 @@
   <button class="btn-export" onclick="openExport()" id="btnExport">Esporta PDF</button>
 </div>
 
+<!-- MODAL STATISTICHE FINALI -->
+<div class="modal" id="statsModal">
+  <div class="modal-box">
+    <h3>Statistiche inventario (CHF)</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px">
+      Valore totale dell'inventario per categoria, calcolato sulle quantità contate × prezzo d'acquisto.
+    </p>
+    <div id="statsArea"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="m-ghost" onclick="closeStats()">Chiudi</button>
+      <button class="m-pdf" onclick="printStats()">Stampa / PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EXPORT -->
 <div class="modal" id="exportModal">
   <div class="modal-box">
@@ -251,8 +269,14 @@
     <div class="modal-actions" style="margin-bottom:8px">
       <button class="m-pdf" style="font-size:15px;padding:14px" onclick="printPDF('all')" id="exBtnPdfAll">PDF tutte le categorie</button>
     </div>
-    <div class="modal-actions" style="margin-bottom:10px">
+    <div class="modal-actions" style="margin-bottom:8px">
       <button class="m-pdf" style="background:var(--paper-2);color:var(--ink);font-size:14px;padding:12px" onclick="printPDF('one')" id="exBtnPdf">PDF questa categoria</button>
+    </div>
+    <div class="modal-actions" style="margin-bottom:8px">
+      <button class="m-pdf" style="background:#15803d;color:#fff;font-size:15px;padding:14px" onclick="downloadExcel()" id="exBtnXls">Excel tutte le categorie</button>
+    </div>
+    <div class="modal-actions" style="margin-bottom:10px">
+      <button class="m-pdf" style="background:var(--ink);color:#fff;font-size:14px;padding:12px" onclick="showStats()" id="exBtnStats">Statistiche finali (CHF)</button>
     </div>
     <div class="bigsteps" id="exSteps"></div>
     <div class="modal-actions">
@@ -309,15 +333,15 @@
 /* === DATI: 13 categorie, 553 prodotti dal file TBH === */
 const CATEGORIE=[{id:"spiritueux",nome:"Spiritueux",zona:"doppia",step:0.1,items:[{n:"Aberdour single malt 12 ans",u:"70cl",pa:63.5},{n:"Abricotine Morand",u:"70cl",pa:44.9},{n:"Abricotine Valladière",u:"70cl",pa:23.9},{n:"Amaretto",u:"70cl",pa:19.9},{n:"Aperol",u:"100cl",pa:16.5},{n:"Appenzeller",u:"100cl",pa:29.8},{n:"Ardberg single malt 10 ans",u:"70cl",pa:49.3},{n:"Averna",u:"70cl",pa:16.9},{n:"Bacardi",u:"70cl",pa:17.5},{n:"Bailey's",u:"70cl",pa:17.0},{n:"Ballantine's",u:"70cl",pa:21.2},{n:"Brandy cuisine",u:"100cl",pa:16.8},{n:"Cachaça",u:"70cl",pa:22.9},{n:"Calvados Morin",u:"70cl",pa:20.5},{n:"Campari",u:"100cl",pa:23.6},{n:"Chivas regal",u:"70cl",pa:34.35},{n:"Cognac Rémy Martin VSOP",u:"70cl",pa:41.2},{n:"Cointreau",u:"70cl",pa:23.7},{n:"Cynar",u:"100cl",pa:18.5},{n:"Eau de vie Framboise",u:"70cl",pa:35.3},{n:"Fernet Branca",u:"70cl",pa:21.95},{n:"Flamberge cuisine",u:"100cl",pa:21.75},{n:"Get 27",u:"70cl",pa:18.1},{n:"Gordon's Gin",u:"70cl",pa:16.3},{n:"Gin Tanqueray LDG",u:"70cl",pa:22.15},{n:"Gin Rangpur",u:"70cl",pa:29.0},{n:"Grand Marnier",u:"70cl",pa:29.9},{n:"Grappa fior di vite",u:"70cl",pa:21.15},{n:"Grappa de Cépage",u:"50cl",pa:25.3},{n:"Grappa Cleopatra",u:"70cl",pa:47.02},{n:"Havana Club Brun 7 ans",u:"70cl",pa:32.4},{n:"Jaegermeister",u:"100cl",pa:28.2},{n:"JWalker Black",u:"70cl",pa:31.3},{n:"J Walker Red",u:"70cl",pa:19.8},{n:"Jack Daniel's",u:"70cl",pa:25.7},{n:"JB",u:"70cl",pa:21.5},{n:"Kirch",u:"100cl",pa:22.9},{n:"Limoncello",u:"200cl",pa:28.5},{n:"Crème de cassis",u:"70cl",pa:16.8},{n:"Laphoroaing",u:"70cl",pa:46.2},{n:"Lagavulin",u:"70cl",pa:71.25},{n:"Liqueur  Abricot",u:"70cl",pa:31.5},{n:"Liqueur de BANANE",u:"70cl",pa:21.2},{n:"Liqueur de TRIPLE SEC",u:"70cl",pa:23.5},{n:"Liqueur de White Pêche",u:"70cl",pa:23.5},{n:"Liqueur de Williamine",u:"70cl",pa:29.1},{n:"Creme de Mûre",u:"70cl",pa:15.0},{n:"Litchi",u:"70cl",pa:17.9},{n:"Madère cuisine",u:"100cl",pa:10.86},{n:"Malibu",u:"70cl",pa:19.1},{n:"Maraschino",u:"100cl",pa:12.5},{n:"Marc du valais",u:"100cl",pa:18.75},{n:"Marsala cuisine",u:"75cl",pa:12.5},{n:"Martini blanc",u:"100cl",pa:10.2},{n:"Martini rouge",u:"100cl",pa:10.2},{n:"Montenegro",u:"70cl",pa:23.9},{n:"Oban",u:"70cl",pa:68.5},{n:"Pastis",u:"100cl",pa:27.95},{n:"Pomme vedrenne Manzana",u:"75cl",pa:24.5},{n:"Porto Blanc",u:"75cl",pa:13.5},{n:"Porto Rouge",u:"75cl",pa:9.5},{n:"Pruneaou",u:"70cl",pa:31.0},{n:"Ricard",u:"100cl",pa:27.95},{n:"Picon",u:"100cl",pa:18.4},{n:"bulleit bourbon",u:"70cl",pa:29.45},{n:"bulleit rye",u:"70cl",pa:29.95},{n:"Rhum diplomatico",u:"70cl",pa:43.5},{n:"Rhum Zaccapa XO",u:"70cl",pa:114.9},{n:"Rhum Zaccapa 23 centenario",u:"70cl",pa:53.9},{n:"Rhum Captain Morgan",u:"70cl",pa:17.15},{n:"Sambuca",u:"70cl",pa:22.5},{n:"Suze",u:"100cl",pa:21.05},{n:"Tequila Sierra Silver",u:"70cl",pa:23.9},{n:"TALISKER",u:"70cl",pa:41.7},{n:"Vieille prune du perigord",u:"70cl",pa:20.9},{n:"Vodka Absolut",u:"70cl",pa:21.35},{n:"Vodka Smirnoff",u:"70cl",pa:15.7},{n:"Williamine la Valadiere L",u:"100cl",pa:31.1},{n:"Ciroc",u:"70cl",pa:38.5},{n:"Ciroc",u:"175cl",pa:99.95},{n:"Pampero Rhum",u:"",pa:23.95},{n:"Williamine Morand",u:"70cl",pa:37.5},{n:"COCKTALIS ALCOOL",u:"100cl",pa:46.9}]},
 {id:"minerales",nome:"Minérales",zona:"doppia",step:1,items:[{n:"Arkina",u:"100cl",pa:0.87},{n:"Bitter rouge",u:"10cl",pa:1.16},{n:"Coca Cola / light / zero",u:"33cl",pa:1.38},{n:"Coca Pet",u:"150cl",pa:2.61},{n:"Cocktalis ss alcool",u:"100cl",pa:46.9},{n:"Fanta orange",u:"33cl",pa:1.74},{n:"Jus bodyguard michel",u:"100cl",pa:2.7},{n:"Jus de fruit bodyguard",u:"20cl",pa:1.59},{n:"Jus de fruits divers",u:"20cl",pa:1.41},{n:"Jus de pomme ramseier",u:"33cl",pa:1.36},{n:"Jus d'orange",u:"100cl",pa:0.8},{n:"Jus ananas litre michel",u:"100cl",pa:2.65},{n:"Jus pomme rams. Litre",u:"100cl",pa:2.12},{n:"Queens Citron Pet",u:"150cl",pa:1.57},{n:"Queens cola Pet",u:"150cl",pa:1.57},{n:"Fanta Pet",u:"50cl",pa:1.67},{n:"REDBULL",u:"25cl",pa:1.94},{n:"Rivella rouge/blue",u:"33cl",pa:1.32},{n:"Kinley Lemon",u:"20cl",pa:1.35},{n:"Kinley Tonic",u:"20cl",pa:1.35},{n:"Kinley Tonic",u:"100cl",pa:3.05},{n:"Sirop de canne",u:"100cl",pa:10.65},{n:"Sirop citronelle",u:"100cl",pa:6.88},{n:"Sirop Fraise",u:"100cl",pa:6.88},{n:"Sirop grenadine",u:"100cl",pa:6.5},{n:"Sirop menthe",u:"100cl",pa:6.88},{n:"Sirop pêche",u:"100cl",pa:7.35},{n:"Sirop",u:"",pa:7.35},{n:"Sirop Mojto",u:"100cl",pa:8.88},{n:"Sirop Fleur de sureaux",u:"100cl",pa:7.35},{n:"Sprite",u:"33cl",pa:1.46},{n:"Thé froid  lemon",u:"100cl",pa:1.2},{n:"Thé froid Pêche",u:"100cl",pa:1.2},{n:"Arkina PET",u:"150cl",pa:1.44},{n:"Valser VC gaz/plate",u:"50cl",pa:1.17},{n:"Valser VC gaz/plate",u:"33cl",pa:1.09},{n:"Lurisia Plat/gaz",u:"50cl",pa:1.15},{n:"Lurisia Plat/gaz",u:"75cl",pa:1.18},{n:"Lur. Aran. Chin. Gass.",u:"27.5cl",pa:1.48}]},
-{id:"vins",nome:"Vins & Champagne",zona:"doppia",step:1,items:[{n:"Cht.de Duiller Œil de Perdrix",u:"75cl",pa:11.5},{n:"Cht.de Duiller Œil de Perdrix",u:"50cl",pa:6.1},{n:"Gamay de Duiller",u:"75cl",pa:9.0},{n:"Gamay de Duiller",u:"50cl",pa:6.0},{n:"Pinot gris",u:"75cl",pa:12.0},{n:"Pinot Noir Coins Perdu",u:"75cl",pa:11.7},{n:"Pinot Noir Coins Perdu",u:"50cl",pa:8.6},{n:"Dom. D`Avenex rosé",u:"50cl",pa:6.04},{n:"Dom. D`Avenex rose",u:"75cl",pa:9.29},{n:"Dom. D`Avenex Pinot N",u:"50cl",pa:7.43},{n:"Dom. D`Avenex Pinot N",u:"75cl",pa:10.21},{n:"Dom. D`Avenex Chasselas",u:"50cl",pa:6.04},{n:"Dom. D`Avenex Chasselas",u:"75cl",pa:7.89},{n:"Dom. D`Avenex Gewürtztraminer",u:"75cl",pa:11.14},{n:"Dom. D`Avenex Gamaret",u:"75cl",pa:10.93},{n:"Château du Barry",u:"75cl",pa:14.45},{n:"Vin de provence rose",u:"75cl",pa:10.0},{n:"Amarone",u:"75cl",pa:28.5},{n:"Brunello Montalcino Banfi",u:"75cl",pa:34.5},{n:"Cannonau Sardaigna",u:"75cl",pa:11.0},{n:"Chianti",u:"50cl",pa:4.4},{n:"Chianti Classico Pepoli",u:"75cl",pa:15.5},{n:"Montepulciano",u:"50cl",pa:2.5},{n:"Montefalco",u:"75cl",pa:11.8},{n:"Barbera",u:"75cl",pa:13.5},{n:"RIPASSO MONTERE",u:"75cl",pa:14.9},{n:"Vins du mois",u:"",pa:9.0},{n:"Vins du mois",u:"",pa:12.0},{n:"Gamay rosé",u:"100cl",pa:6.5},{n:"Goron",u:"100cl",pa:7.25},{n:"Montepulciano",u:"100cl",pa:3.85},{n:"Rouge Cuisine",u:"100cl",pa:2.45},{n:"Salvagnin",u:"100cl",pa:7.4},{n:"Chasselas Romand",u:"100cl",pa:6.1},{n:"Chianti",u:"100cl",pa:4.0},{n:"Prosecco",u:"75cl",pa:6.9},{n:"Laurent Perrier",u:"75cl",pa:39.9},{n:"Boizel rosé",u:"75cl",pa:37.0},{n:"Vins + Champagne",u:"",pa:437.27}]},
-{id:"pressions",nome:"Pressions",zona:"doppia",step:0.1,items:[{n:"Kro 1664 Fût plein",u:"20L",pa:105.6},{n:"Valaisane Fûts pleins",u:"20L",pa:111.0},{n:"Valaisane White IPA",u:"20L",pa:119.4},{n:"Grimbergen Ambée",u:"20L",pa:120.4},{n:"Grimbergen  blanche Fûts pleins",u:"20L",pa:107.2},{n:"Superbock",u:"20L",pa:95.4},{n:"Brooklin",u:"20L",pa:108.2},{n:"VALSER PREMIX Fûts pleins",u:"20l",pa:41.4},{n:"coca postmix Fûts pleins",u:"20l",pa:344.0},{n:"sprite postmix Fûts pleins",u:"10l",pa:146.4},{n:"fuse tea postmix Fûts pleins",u:"10l",pa:129.4},{n:"Aligal CO 2 Grande (plein)",u:"",pa:57.95},{n:"Aligal CO 2 Petite (plein)",u:"",pa:55.95},{n:"Bierre du mois",u:"",pa:2.4},{n:"Guiness",u:"33cl",pa:2.57},{n:"Coruja",u:"33cl",pa:1.76},{n:"Corona",u:"35.5cl",pa:2.17},{n:"Desperados",u:"33cl",pa:2.37},{n:"Superbock sans alco",u:"33cl",pa:1.25},{n:"Heineken",u:"25cl",pa:1.73},{n:"Grimberg Rouge",u:"25cl",pa:2.02},{n:"SMIRNOFF ICE",u:"33cl",pa:2.31},{n:"SOMERSBY",u:"33cl",pa:1.9},{n:"Superbock",u:"25cl",pa:0.85}]},
+{id:"vins",nome:"Vins & Champagne",zona:"doppia",step:1,items:[{n:"Cht.de Duiller Œil de Perdrix",u:"75cl",pa:11.5},{n:"Cht.de Duiller Œil de Perdrix",u:"50cl",pa:6.1},{n:"Gamay de Duiller",u:"75cl",pa:9.0},{n:"Gamay de Duiller",u:"50cl",pa:6.0},{n:"Pinot gris",u:"75cl",pa:12.0},{n:"Pinot Noir Coins Perdu",u:"75cl",pa:11.7},{n:"Pinot Noir Coins Perdu",u:"50cl",pa:8.6},{n:"Dom. D`Avenex rosé",u:"50cl",pa:6.04},{n:"Dom. D`Avenex rose",u:"75cl",pa:9.29},{n:"Dom. D`Avenex Pinot N",u:"50cl",pa:7.43},{n:"Dom. D`Avenex Pinot N",u:"75cl",pa:10.21},{n:"Dom. D`Avenex Chasselas",u:"50cl",pa:6.04},{n:"Dom. D`Avenex Chasselas",u:"75cl",pa:7.89},{n:"Dom. D`Avenex Gewürtztraminer",u:"75cl",pa:11.14},{n:"Dom. D`Avenex Gamaret",u:"75cl",pa:10.93},{n:"Château du Barry",u:"75cl",pa:14.45},{n:"Vin de provence rose",u:"75cl",pa:10.0},{n:"Amarone",u:"75cl",pa:28.5},{n:"Brunello Montalcino Banfi",u:"75cl",pa:34.5},{n:"Cannonau Sardaigna",u:"75cl",pa:11.0},{n:"Chianti",u:"50cl",pa:4.4},{n:"Chianti Classico Pepoli",u:"75cl",pa:15.5},{n:"Montepulciano",u:"50cl",pa:2.5},{n:"Montefalco",u:"75cl",pa:11.8},{n:"Barbera",u:"75cl",pa:13.5},{n:"RIPASSO MONTERE",u:"75cl",pa:14.9},{n:"Vins du mois",u:"",pa:9.0},{n:"Vins du mois",u:"",pa:12.0},{n:"Gamay rosé",u:"100cl",pa:6.5},{n:"Goron",u:"100cl",pa:7.25},{n:"Montepulciano",u:"100cl",pa:3.85},{n:"Rouge Cuisine",u:"100cl",pa:2.45},{n:"Salvagnin",u:"100cl",pa:7.4},{n:"Chasselas Romand",u:"100cl",pa:6.1},{n:"Chianti",u:"100cl",pa:4.0},{n:"Prosecco",u:"75cl",pa:6.9},{n:"Laurent Perrier",u:"75cl",pa:39.9},{n:"Boizel rosé",u:"75cl",pa:37.0}]},
+{id:"pressions",nome:"Pressions",zona:"doppia",step:0.1,items:[{n:"Kro 1664 Fût plein",u:"20L",pa:105.6},{n:"Valaisane Fûts pleins",u:"20L",pa:111.0},{n:"Valaisane White IPA",u:"20L",pa:119.4},{n:"Grimbergen Ambée",u:"20L",pa:120.4},{n:"Grimbergen  blanche Fûts pleins",u:"20L",pa:107.2},{n:"Superbock",u:"20L",pa:95.4},{n:"Brooklin",u:"20L",pa:108.2},{n:"VALSER PREMIX Fûts pleins",u:"20l",pa:41.4},{n:"coca postmix Fûts pleins",u:"20l",pa:344.0},{n:"sprite postmix Fûts pleins",u:"10l",pa:146.4},{n:"fuse tea postmix Fûts pleins",u:"10l",pa:129.4},{n:"Total fûts pleins et vides",u:"",pa:0.0},{n:"Aligal CO 2 Grande (plein)",u:"",pa:57.95},{n:"Aligal CO 2 Petite (plein)",u:"",pa:55.95},{n:"Total Gaz CO2 (plein + vide)",u:"",pa:0.0},{n:"Bierre du mois",u:"",pa:2.4},{n:"Guiness",u:"33cl",pa:2.57},{n:"Coruja",u:"33cl",pa:1.76},{n:"Corona",u:"35.5cl",pa:2.17},{n:"Desperados",u:"33cl",pa:2.37},{n:"Superbock sans alco",u:"33cl",pa:1.25},{n:"Heineken",u:"25cl",pa:1.73},{n:"Grimberg Rouge",u:"25cl",pa:2.02},{n:"SMIRNOFF ICE",u:"33cl",pa:2.31},{n:"SOMERSBY",u:"33cl",pa:1.9},{n:"Superbock",u:"25cl",pa:0.85}]},
 {id:"emballage",nome:"Emballage & Café",zona:"doppia",step:1,items:[{n:"Harasses + pleines",u:"",pa:5.0},{n:"Chocofino",u:"pièce",pa:0.25},{n:"Chocolat pour café",u:"sac",pa:20.0},{n:"Suchard express",u:"pièce",pa:0.25},{n:"Menthe",u:"pièce",pa:0.11},{n:"Tilleul",u:"pièce",pa:0.11},{n:"Verveine",u:"pièce",pa:0.11},{n:"Camomille",u:"pièce",pa:0.11},{n:"Cynorrhodon",u:"pièce",pa:0.13},{n:"Thé Noir",u:"pièce",pa:0.12},{n:"Café",u:"kilo",pa:13.2},{n:"Décafeiné",u:"pièce",pa:0.34},{n:"Speculos",u:"Sachets",pa:0.04},{n:"Assugrin",u:"Sachets",pa:0.04},{n:"Sucre",u:"Cartons",pa:15.11},{n:"Thé vert",u:"pièce",pa:0.1}]},
-{id:"snacks",nome:"Snacks & Bonbons",zona:"doppia",step:1,items:[{n:"Bounty",u:"Unité",pa:0.9},{n:"Chips natures & Pap 30gr",u:"Unité",pa:0.89},{n:"Chips paprika 350gr",u:"Unité",pa:3.55},{n:"Chupa chups",u:"Unité",pa:0.37},{n:"Fraises tagada",u:"Unité",pa:1.42},{n:"Frites fizz",u:"Unité",pa:1.42},{n:"Happy cola",u:"Unité",pa:1.42},{n:"M&M's",u:"Unité",pa:0.82},{n:"Malteser",u:"Unité",pa:0.93},{n:"Mars",u:"Unité",pa:0.75},{n:"Nachos 450 g",u:"Unité",pa:2.9},{n:"Nachos nature 450g",u:"Unité",pa:1.45},{n:"Panini",u:"Unité",pa:1.2},{n:"Pizza al taglio",u:"Unité",pa:3.2},{n:"Poche ketchup",u:"Unité",pa:0.2},{n:"Poche mayo",u:"Unité",pa:0.2},{n:"mayo",u:"Unité",pa:4.0},{n:"ketchup",u:"Unité",pa:4.5},{n:"Mutarde",u:"Unité",pa:4.5},{n:"Poche moutarde",u:"Unité",pa:0.2},{n:"Pringles",u:"Unité",pa:1.15},{n:"Quaxy",u:"Unité",pa:1.42},{n:"Sauce guacamole",u:"Unité",pa:6.6},{n:"Sauce chedar",u:"Unité",pa:1.3},{n:"Sauce salsa",u:"Unité",pa:12.2},{n:"Mais PopCorn Butterfly",u:"1 Kg",pa:2.16},{n:"Snickers",u:"Unité",pa:0.9},{n:"Ttwix",u:"Unité",pa:0.77},{n:"King cône",u:"Unité",pa:2.44},{n:"Chocolate cornetto",u:"Unité",pa:1.81},{n:"Fraise cornetto",u:"Unité",pa:1.81},{n:"Vanille cornetto",u:"Unité",pa:1.81},{n:"Rocket",u:"Unité",pa:0.56},{n:"Solero",u:"Unité",pa:1.81},{n:"Haribo",u:"Unité",pa:1.18},{n:"Twister",u:"Unité",pa:1.04},{n:"Calippo",u:"Unité",pa:1.18},{n:"Magnum classic",u:"Unité",pa:1.6},{n:"Magnum almond",u:"Unité",pa:1.6},{n:"Magnum white",u:"Unité",pa:1.15},{n:"Magnum dble caramel",u:"Unité",pa:1.96},{n:"Magnum dark intense",u:"Unité",pa:2.21},{n:"Donuts Fourés",u:"Unité",pa:1.41},{n:"Donuts",u:"Unité",pa:0.7}]},
+{id:"snacks",nome:"Snacks & Bonbons",zona:"doppia",step:1,items:[{n:"Bounty",u:"Unité",pa:0.9},{n:"Chips natures & Pap 30gr",u:"Unité",pa:0.89},{n:"Chips paprika 350gr",u:"Unité",pa:3.55},{n:"Chupa chups",u:"Unité",pa:0.37},{n:"Fraises tagada",u:"Unité",pa:1.42},{n:"Frites fizz",u:"Unité",pa:1.42},{n:"Happy cola",u:"Unité",pa:1.42},{n:"M&M's",u:"Unité",pa:0.82},{n:"Malteser",u:"Unité",pa:0.93},{n:"Mars",u:"Unité",pa:0.75},{n:"Nachos 450 g",u:"Unité",pa:2.9},{n:"Nachos nature 450g",u:"Unité",pa:1.45},{n:"Panini",u:"Unité",pa:1.2},{n:"Pizza al taglio",u:"Unité",pa:3.2},{n:"Poche ketchup",u:"Unité",pa:0.2},{n:"Poche mayo",u:"Unité",pa:0.2},{n:"mayo",u:"Unité",pa:4.0},{n:"ketchup",u:"Unité",pa:4.5},{n:"Mutarde",u:"Unité",pa:4.5},{n:"Poche moutarde",u:"Unité",pa:0.2},{n:"Pringles",u:"Unité",pa:1.15},{n:"Quaxy",u:"Unité",pa:1.42},{n:"Sauce guacamole",u:"Unité",pa:6.6},{n:"Sauce chedar",u:"Unité",pa:1.3},{n:"Sauce salsa",u:"Unité",pa:12.2},{n:"Mais PopCorn Butterfly",u:"1 Kg",pa:2.16},{n:"PopCorn",u:"",pa:0.0},{n:"Snickers",u:"Unité",pa:0.9},{n:"Ttwix",u:"Unité",pa:0.77},{n:"King cône",u:"Unité",pa:2.44},{n:"Chocolate cornetto",u:"Unité",pa:1.81},{n:"Fraise cornetto",u:"Unité",pa:1.81},{n:"Vanille cornetto",u:"Unité",pa:1.81},{n:"Rocket",u:"Unité",pa:0.56},{n:"Solero",u:"Unité",pa:1.81},{n:"Haribo",u:"Unité",pa:1.18},{n:"Twister",u:"Unité",pa:1.04},{n:"Calippo",u:"Unité",pa:1.18},{n:"Magnum classic",u:"Unité",pa:1.6},{n:"Magnum almond",u:"Unité",pa:1.6},{n:"Magnum white",u:"Unité",pa:1.15},{n:"Magnum dble caramel",u:"Unité",pa:1.96},{n:"Magnum dark intense",u:"Unité",pa:2.21},{n:"Tresor",u:"Unité",pa:0.0},{n:"Donuts Fourés",u:"Unité",pa:1.41},{n:"Donuts",u:"Unité",pa:0.7}]},
 {id:"desserts",nome:"Desserts",zona:"singola",step:1,items:[{n:"Abricot",u:"2.4 litres",pa:13.07},{n:"Assort.mini choux",u:"Pièce",pa:0.68},{n:"Assort.mini viennoiseries",u:"Pièce",pa:0.35},{n:"Ballons de table",u:"Pièce",pa:0.49},{n:"Brownies",u:"Pièce",pa:1.15},{n:"Mini Burger épautre",u:"Pièce",pa:0.6},{n:"Pizza Sns gluten",u:"Pièce",pa:3.57},{n:"Burger épautre",u:"Pièce",pa:0.6},{n:"Cassata",u:"Pièce",pa:1.07},{n:"Chocolat",u:"2.4 litres",pa:11.3},{n:"Citron vert",u:"2.4 litres",pa:10.14},{n:"Croissant précuit",u:"Pièce",pa:0.58},{n:"Café",u:"2.4 litres",pa:16.45},{n:"Flûte limoncello",u:"Pièce",pa:4.28},{n:"Fraises",u:"2.4 litres",pa:11.56},{n:"Frites",u:"kilo",pa:4.0},{n:"Fruits des bois",u:"kilo",pa:6.0},{n:"Génoise chocolat",u:"Pièce",pa:78.0},{n:"Génoise nature",u:"Pièce",pa:78.0},{n:"Macarons",u:"carton",pa:38.5},{n:"Mangue",u:"2.4 litres",pa:10.6},{n:"Mignardises",u:"Pièce",pa:0.9},{n:"Mocca",u:"2.4 litres",pa:11.56},{n:"Noix de coco",u:"2.4 litres",pa:11.3},{n:"Nuggets",u:"kilo",pa:11.72},{n:"Pain au Chocolat",u:"Pièce",pa:0.65},{n:"Mini navet",u:"Pièce",pa:0.28},{n:"Pains hot-dog",u:"Pièce",pa:0.78},{n:"Pancakes",u:"Pièce",pa:0.7},{n:"Pains sandwichs",u:"Pièce",pa:0.64},{n:"Panini",u:"Pièce",pa:1.71},{n:"Parfait mocca",u:"Pièce",pa:1.86},{n:"Pistache",u:"2.4 litres",pa:12.96},{n:"Poire william",u:"2.4 litres",pa:13.59},{n:"Profiteroles",u:"Pièce",pa:0.3},{n:"Tartes fines aux pommes",u:"Pièce",pa:1.85},{n:"Fusée",u:"Pièce",pa:0.56},{n:"Vanille",u:"5 litres",pa:22.49},{n:"Mini Croissant",u:"Pièce",pa:0.3},{n:"Pain",u:"Pièce",pa:2.8},{n:"Pain toast",u:"Pièce",pa:3.32},{n:"Pome",u:"2.4 litres",pa:10.6},{n:"Donut soucrée",u:"Pièce",pa:0.7},{n:"Dessert divers Maison",u:"Pièce",pa:1.5},{n:"Donut choco",u:"Pièce",pa:1.51}]},
 {id:"boucherie",nome:"Boucherie",zona:"singola",step:0.1,items:[{n:"Blanc de poulet",u:"kilo",pa:14.5},{n:"Bœuf aiguillette",u:"kilo",pa:26.8},{n:"Bresaola",u:"kilo",pa:41.9},{n:"Carpaccio",u:"kilo",pa:34.0},{n:"Côte d'agneau",u:"kilo",pa:20.8},{n:"Côte de veau",u:"kilo",pa:29.0},{n:"Emincé Volaille",u:"kilo",pa:13.5},{n:"Entrecôte 1er choix",u:"kilo",pa:39.0},{n:"Filet de boeuf",u:"kilo",pa:49.5},{n:"Filet mignon sanglier",u:"kilo",pa:17.95},{n:"Foie gras",u:"kilo",pa:47.5},{n:"Speck",u:"kilo",pa:23.5},{n:"Jambon epaule",u:"kilo",pa:14.4},{n:"Jambon de Parme",u:"kilo",pa:28.5},{n:"Jambon de dinde",u:"kilo",pa:18.95},{n:"Lard fumé",u:"kilo",pa:14.9},{n:"Merguez",u:"kilo",pa:13.8},{n:"Mortadelle",u:"kilo",pa:17.9},{n:"Entrecôte Parisene",u:"kilo",pa:24.95},{n:"Entrecôte Cheval",u:"kilo",pa:21.5},{n:"Foies de volaies",u:"kilo",pa:16.0},{n:"Chorizo",u:"kilo",pa:15.15},{n:"Noisette de chevreuil",u:"kilo",pa:30.5},{n:"Noix de veau",u:"kilo",pa:53.0},{n:"Poulet poitrine",u:"kilo",pa:14.8},{n:"Pancetta",u:"kilo",pa:22.95},{n:"R. Steak",u:"kilo",pa:37.0},{n:"Ravioli de cheveuil",u:"kilo",pa:14.2},{n:"Salami rustico",u:"kilo",pa:31.83},{n:"Salami piquant",u:"kilo",pa:18.9},{n:"Saucisse HOT DOG",u:"kilo",pa:13.7},{n:"Suprême poulet",u:"kilo",pa:16.9},{n:"Tartare portion",u:"kilo",pa:31.5},{n:"Travers de porc",u:"kilo",pa:17.9},{n:"Veau épaule",u:"kilo",pa:30.9},{n:"Salame de sanclier",u:"kilo",pa:32.0},{n:"Viande hamburger",u:"kilo",pa:20.5},{n:"Coppa",u:"kilo",pa:32.0},{n:"viands divers",u:"kilo",pa:20.0},{n:"Viande hachée",u:"kilo",pa:17.5}]},
 {id:"poissons",nome:"Poissons",zona:"singola",step:0.1,items:[{n:"Anchois",u:"800gr",pa:15.8},{n:"Calamari",u:"kilo",pa:8.9},{n:"Chutes saumon fumé",u:"kilo",pa:19.9},{n:"Cocktail de Crevettes",u:"kilo",pa:18.9},{n:"Dorade",u:"kilo",pa:14.5},{n:"Dos de cabillaud",u:"kilo",pa:45.0},{n:"Espadon",u:"kilo",pa:23.0},{n:"Filets de Perche",u:"kilo",pa:24.0},{n:"Filets de Pangasus",u:"kilo",pa:6.5},{n:"Fruits de mer ( Maison)",u:"kilo",pa:24.9},{n:"Gambas",u:"kilo",pa:17.0},{n:"Gambas decortique",u:"kilo",pa:18.0},{n:"Moules de Bouchot",u:"kilo",pa:8.5},{n:"Noix St Jacques",u:"kilo",pa:59.0},{n:"Poulpe",u:"kilo",pa:25.9},{n:"Saumon",u:"kilo",pa:23.0},{n:"Saumon fumé / Norvège",u:"kilo",pa:28.5},{n:"Seiches",u:"kilo",pa:12.0},{n:"Sole",u:"kilo",pa:35.0},{n:"Sticks de cabillaud",u:"kilo",pa:16.0},{n:"Filet de fera",u:"kilo",pa:28.5},{n:"Thon rose",u:"boîte",pa:11.25},{n:"Vongole",u:"kilo",pa:16.5},{n:"plat du jour",u:"kilo",pa:18.0}]},
 {id:"pates",nome:"Pâtes & Riz",zona:"singola",step:0.1,items:[{n:"Bucatini",u:"kilo",pa:2.66},{n:"Farfalle",u:"kilo",pa:3.42},{n:"Fusilli",u:"kilo",pa:2.95},{n:"Fusili Alfredo",u:"kilo",pa:3.95},{n:"Gnocchi",u:"kilo",pa:4.6},{n:"Lasagne blanche 500gr",u:"piece",pa:3.2},{n:"Lasagne portion",u:"piece",pa:5.35},{n:"Linguini fraiches",u:"kilo",pa:7.12},{n:"Linguini",u:"kilo",pa:2.66},{n:"Orechiette",u:"kilo",pa:4.38},{n:"Papardelle",u:"kilo",pa:6.6},{n:"Penne",u:"kilo",pa:6.4},{n:"Penne rigate 3kg",u:"piece",pa:9.85},{n:"Polenta",u:"kilo",pa:2.9},{n:"Rigatoni",u:"kilo",pa:2.4},{n:"Riz au jasmin",u:"kilo",pa:2.4},{n:"Risotto arborio",u:"Kilo",pa:2.9},{n:"Riz basmati",u:"kilo",pa:3.2},{n:"Riz Golden",u:"1 kilo",pa:1.2},{n:"Spaghetti vrac 3kg",u:"piece",pa:9.85},{n:"Tagliatelle fraiches",u:"kilo",pa:8.84},{n:"Tagliatelle  500gr",u:"piece",pa:2.5},{n:"Taglioni",u:"kilo",pa:7.5},{n:"Tortellini Viande",u:"kilo",pa:11.9},{n:"Tortiglioni",u:"kilo",pa:3.4},{n:"Pâtes Divers",u:"kilo",pa:4.4},{n:"Pâtes Divers frais",u:"kilo",pa:12.0}]},
-{id:"condiments",nome:"Condiments",zona:"singola",step:1,items:[{n:"Amandes effilées",u:"piece",pa:3.14},{n:"Amarenata",u:"piece",pa:12.92},{n:"Artichaut 3/1",u:"piece",pa:9.25},{n:"Biscuits savoyards",u:"piece",pa:3.14},{n:"Bouillon",u:"Kilo",pa:23.58},{n:"Bouillon de poule",u:"Kilo",pa:23.67},{n:"Brislets roulés",u:"piece",pa:0.15},{n:"Champignons",u:"kilo",pa:6.5},{n:"Chocolat",u:"kilo",pa:12.5},{n:"Condimix",u:"Boîte",pa:18.0},{n:"Confiture",u:"piece",pa:0.27},{n:"Couscous moyen",u:"kilo",pa:1.89},{n:"Crème de truffe noire",u:"400 g.",pa:23.0},{n:"Crème sandwich",u:"bi 4.7k",pa:31.6},{n:"Curry des Indes",u:"Boîte",pa:6.55},{n:"Demi glace",u:"Kilo",pa:17.98},{n:"Farine fleur",u:"kilo",pa:1.45},{n:"Farine M. Blanche",u:"kilo",pa:1.42},{n:"Fumet de poisson maison",u:"kilo",pa:12.0},{n:"Gélatine Agar-agar",u:"piece",pa:59.8},{n:"Huile d'Olive congedi",u:"25cl",pa:4.51},{n:"Huile d'Olive Speroni",u:"litre",pa:4.85},{n:"Huile Tournesol High",u:"1 Litre",pa:4.75},{n:"Jus de citron",u:"Litre",pa:3.5},{n:"Ketchup",u:"Btle",pa:12.8},{n:"Lentilles",u:"piece",pa:3.14},{n:"Maïzena",u:"Boîte",pa:10.95},{n:"Maïzena rapide",u:"Boîte",pa:14.48},{n:"Mayonnaise   portions",u:"piece",pa:0.34},{n:"Mayonnaise 4.7 kg",u:"piece",pa:20.0},{n:"Miel",u:"pièce",pa:0.41},{n:"Minestrone",u:"kilo",pa:8.0},{n:"Moutarde forte",u:"piece",pa:0.34},{n:"Moutarde forte",u:"bi 5.2k",pa:17.5},{n:"Oignons au vinaigre",u:"Boîte",pa:16.0},{n:"Olives noires",u:"boîte",pa:19.9},{n:"Olives vertes",u:"piece",pa:3.14},{n:"Origan",u:"Kilo",pa:11.0},{n:"Pignons",u:"kilo",pa:69.0},{n:"Pois chiches",u:"pièce",pa:2.5},{n:"Poivre blanc",u:"Kilo",pa:18.62},{n:"Poivre vert",u:"Boîte",pa:3.14},{n:"Poudre Aromat 120g",u:"Kilo",pa:2.9},{n:"Quinoa",u:"piece",pa:3.14},{n:"Safran moulu",u:"10 g",pa:34.5},{n:"Sauce soja",u:"piece",pa:3.14},{n:"Sel cuisine",u:"kilo",pa:0.55},{n:"Semoule di grana duro",u:"kilo",pa:1.96},{n:"Sésame",u:"piece",pa:3.3},{n:"Sucre",u:"kilo",pa:1.14},{n:"Sucre de canne",u:"Kilo",pa:1.14},{n:"Sucre glace",u:"Kilo",pa:2.55},{n:"Tabasco",u:"Btle",pa:2.9},{n:"Tomates pelées",u:"boite",pa:4.95},{n:"Tomate double concentré",u:"Boîte",pa:2.4},{n:"Tomate polpa 10kg",u:"kilo",pa:1.5},{n:"Tomates séchées",u:"piece",pa:3.14},{n:"Topping café",u:"Btle",pa:7.5},{n:"Topping caramel",u:"Btle",pa:8.75},{n:"Topping chocolat",u:"Btlle",pa:7.5},{n:"Topping fraise",u:"Btle",pa:7.5},{n:"Vin de cuisine",u:"Litre",pa:3.14},{n:"Vinaigre Aceto Balsamico",u:"Litre",pa:7.6},{n:"Vinaigre Blanc",u:"Litre",pa:1.9},{n:"Vinaigre de framboise",u:"Bt.",pa:10.35},{n:"Vinaigre rouge",u:"litre",pa:1.54},{n:"Worchesteine sauce",u:"Boîte",pa:2.77},{n:"Piments 1.7KG",u:"Boîte",pa:12.5},{n:"Viagra calabrese 106g",u:"Boîte",pa:2.0},{n:"Artichauds 3.1KG",u:"Boîte",pa:23.0},{n:"Bolets seches  500 g",u:"saches",pa:42.0},{n:"Antipasto Calab. 3.1KG",u:"Boîte",pa:20.0},{n:"Antipasto Mont. 3.1 KG",u:"Boîte",pa:22.0}]},
+{id:"condiments",nome:"Condiments",zona:"singola",step:1,items:[{n:"Amandes effilées",u:"piece",pa:3.14},{n:"Amarenata",u:"piece",pa:12.92},{n:"Artichaut 3/1",u:"piece",pa:9.25},{n:"Biscuits savoyards",u:"piece",pa:3.14},{n:"Bouillon",u:"Kilo",pa:23.58},{n:"Bouillon de poule",u:"Kilo",pa:23.67},{n:"Brislets roulés",u:"piece",pa:0.15},{n:"Champignons",u:"kilo",pa:6.5},{n:"Chocolat",u:"kilo",pa:12.5},{n:"Condimix",u:"Boîte",pa:18.0},{n:"Confiture",u:"piece",pa:0.27},{n:"Couscous moyen",u:"kilo",pa:1.89},{n:"Crème de truffe noire",u:"400 g.",pa:23.0},{n:"Crème sandwich",u:"bi 4.7k",pa:31.6},{n:"Curry des Indes",u:"Boîte",pa:6.55},{n:"Demi glace",u:"Kilo",pa:17.98},{n:"Farine fleur",u:"kilo",pa:1.45},{n:"Farine M. Blanche",u:"kilo",pa:1.42},{n:"Fumet de poisson maison",u:"kilo",pa:12.0},{n:"Gélatine Agar-agar",u:"piece",pa:59.8},{n:"Huile d'Olive congedi",u:"25cl",pa:4.51},{n:"Huile d'Olive Speroni",u:"litre",pa:4.85},{n:"Huile Tournesol High",u:"1 Litre",pa:4.75},{n:"Jus de citron",u:"Litre",pa:3.5},{n:"Ketchup",u:"Btle",pa:12.8},{n:"Lentilles",u:"piece",pa:3.14},{n:"Maïzena",u:"Boîte",pa:10.95},{n:"Maïzena rapide",u:"Boîte",pa:14.48},{n:"Mayonnaise   portions",u:"piece",pa:0.34},{n:"Mayonnaise 4.7 kg",u:"piece",pa:20.0},{n:"Miel",u:"pièce",pa:0.41},{n:"Minestrone",u:"kilo",pa:8.0},{n:"Moutarde forte",u:"piece",pa:0.34},{n:"Moutarde forte",u:"bi 5.2k",pa:17.5},{n:"Oignons au vinaigre",u:"Boîte",pa:16.0},{n:"Olives noires",u:"boîte",pa:19.9},{n:"Olives vertes",u:"piece",pa:3.14},{n:"Origan",u:"Kilo",pa:11.0},{n:"Pignons",u:"kilo",pa:69.0},{n:"Pois chiches",u:"pièce",pa:2.5},{n:"Poivre blanc",u:"Kilo",pa:18.62},{n:"Poivre vert",u:"Boîte",pa:3.14},{n:"Poudre Aromat 120g",u:"Kilo",pa:2.9},{n:"Quinoa",u:"piece",pa:3.14},{n:"Riz Jasmin",u:"Kilo",pa:0.0},{n:"Safran moulu",u:"10 g",pa:34.5},{n:"Sauce soja",u:"piece",pa:3.14},{n:"Sel cuisine",u:"kilo",pa:0.55},{n:"Semoule di grana duro",u:"kilo",pa:1.96},{n:"Sésame",u:"piece",pa:3.3},{n:"Sucre",u:"kilo",pa:1.14},{n:"Sucre de canne",u:"Kilo",pa:1.14},{n:"Sucre glace",u:"Kilo",pa:2.55},{n:"Tabasco",u:"Btle",pa:2.9},{n:"Tomates pelées",u:"boite",pa:4.95},{n:"Tomate double concentré",u:"Boîte",pa:2.4},{n:"Tomate polpa 10kg",u:"kilo",pa:1.5},{n:"Tomates séchées",u:"piece",pa:3.14},{n:"Topping café",u:"Btle",pa:7.5},{n:"Topping caramel",u:"Btle",pa:8.75},{n:"Topping chocolat",u:"Btlle",pa:7.5},{n:"Topping fraise",u:"Btle",pa:7.5},{n:"Vin de cuisine",u:"Litre",pa:3.14},{n:"Vinaigre Aceto Balsamico",u:"Litre",pa:7.6},{n:"Vinaigre Blanc",u:"Litre",pa:1.9},{n:"Vinaigre de framboise",u:"Bt.",pa:10.35},{n:"Vinaigre rouge",u:"litre",pa:1.54},{n:"Worchesteine sauce",u:"Boîte",pa:2.77},{n:"Piments 1.7KG",u:"Boîte",pa:12.5},{n:"Viagra calabrese 106g",u:"Boîte",pa:2.0},{n:"Artichauds 3.1KG",u:"Boîte",pa:23.0},{n:"Bolets seches  500 g",u:"saches",pa:42.0},{n:"Antipasto Calab. 3.1KG",u:"Boîte",pa:20.0},{n:"Antipasto Mont. 3.1 KG",u:"Boîte",pa:22.0}]},
 {id:"fromages",nome:"Fromages & Œufs",zona:"singola",step:0.1,items:[{n:"Beurre",u:"Kilo",pa:13.45},{n:"Beurre Portion",u:"pièce",pa:0.2},{n:"Burratina 250gr",u:"pièce",pa:4.9},{n:"Cheddar",u:"Kilo",pa:11.0},{n:"Chèvre",u:"Kilo",pa:13.8},{n:"Crème 0.25",u:"piece",pa:5.8},{n:"Crème 0.35",u:"piece",pa:6.1},{n:"Crème à café",u:"Carton",pa:9.9},{n:"Crème chantilly",u:"pièce",pa:9.9},{n:"Feta",u:"Kilo",pa:12.5},{n:"Gorgonzola",u:"Kilo",pa:9.35},{n:"Grana padano bloc",u:"Kilo",pa:15.3},{n:"Grana Padano rapé",u:"Kilo",pa:12.5},{n:"Gruyère",u:"Kilo",pa:16.4},{n:"Lait",u:"Litre",pa:1.24},{n:"Levure",u:"pièce",pa:0.25},{n:"Mascarpone",u:"pièce",pa:6.8},{n:"Mayonnaise bidon 5 l",u:"5 litre",pa:16.5},{n:"Mozzarella boule Bufala",u:"Kilo",pa:14.4},{n:"Mozz dolce latteJulienne",u:"Kilo",pa:6.5},{n:"Mozzarelline",u:"kilo",pa:12.95},{n:"Œuf",u:"pièce",pa:0.31},{n:"Pâte Feuilletée",u:"Rouleau",pa:32.95},{n:"Ricotta",u:"kilo",pa:9.4},{n:"Roquefort",u:"Kilo",pa:29.9},{n:"Taleggio",u:"Kilo",pa:14.0},{n:"Tilsit",u:"Kilo",pa:13.8},{n:"Tofu",u:"Kilo",pa:17.3},{n:"Kiri",u:"Carton",pa:30.17},{n:"Babibel",u:"Carton",pa:59.4},{n:"Provolone",u:"Kilo",pa:13.8},{n:"Jaune d'œuf",u:"Litre",pa:13.8},{n:"Sauce hollandaise",u:"piece",pa:13.8},{n:"Sauce bearnaise",u:"piece",pa:13.8},{n:"Double creme",u:"litre",pa:13.8},{n:"Lait coco",u:"litre",pa:13.8},{n:"Yogourt mélange",u:"pièce",pa:0.45}]},
 {id:"fruits",nome:"Fruits & Légumes",zona:"singola",step:0.1,items:[{n:"Ail",u:"Kilo",pa:7.2},{n:"Ananas",u:"Kilo",pa:8.75},{n:"Asperges",u:"kilo",pa:10.75},{n:"Aubergine",u:"Kilo",pa:4.5},{n:"Avocat",u:"Pièce",pa:2.0},{n:"Banane",u:"Kilo",pa:2.9},{n:"Basilic",u:"kilo",pa:30.75},{n:"Betterave chioggia",u:"kilo",pa:10.2},{n:"Betterave cuite",u:"kilo",pa:10.2},{n:"Bolets",u:"Kilo",pa:14.5},{n:"Brocolis congelés",u:"Kilo",pa:5.0},{n:"Câpres",u:"boite",pa:10.7},{n:"Carotte",u:"Kilo",pa:1.8},{n:"Cerneaux de noix",u:"kilo",pa:22.0},{n:"Champignons de Paris",u:"kilo",pa:7.0},{n:"Champignons mélangés",u:"Kilo",pa:24.0},{n:"Chanterelles",u:"boîte",pa:13.75},{n:"Choux blancs",u:"kilo",pa:3.5},{n:"Choux rouges",u:"kilo",pa:3.5},{n:"Citron",u:"Kilo",pa:3.6},{n:"Citrons verts",u:"kilo",pa:8.5},{n:"Clémentines",u:"kilo",pa:8.5},{n:"Clous de Giroffle",u:"boîte",pa:8.0},{n:"Cœur d' Artichauts",u:"kilo",pa:6.38},{n:"Concombre",u:"piece",pa:2.2},{n:"Cornichons",u:"boîte",pa:21.25},{n:"Courgette",u:"Kilo",pa:4.5},{n:"Echalotte",u:"Kilo",pa:7.5},{n:"Endive",u:"kilo",pa:5.7},{n:"Epinards",u:"kilo",pa:4.29},{n:"Feuille de chêne",u:"pièce",pa:1.8},{n:"Fraises",u:"500 gr",pa:5.9},{n:"Framboises surg",u:"kilo",pa:6.9},{n:"Haricots verts congelés",u:"Kilo",pa:4.6},{n:"Jardinère",u:"Kilo",pa:5.2},{n:"Kiwi",u:"kilo",pa:8.5},{n:"Maïs",u:"boîte",pa:4.4},{n:"Mangue",u:"PS",pa:8.5},{n:"Cubes mangues surg",u:"kilo",pa:8.5},{n:"Myrtilles surg",u:"kilo",pa:10.45},{n:"Melons",u:"kilo",pa:10.45},{n:"Morilles séchées",u:"kilo",pa:132.0},{n:"Noix",u:"kilo",pa:10.0},{n:"Oignons",u:"Kilo",pa:1.8},{n:"Oignons rouges",u:"Kilo",pa:4.5},{n:"Oranges",u:"Kilo",pa:2.8},{n:"Petits pois congelés",u:"Kilo",pa:4.9},{n:"Poireau entier",u:"Kilo",pa:5.5},{n:"Poivrons",u:"Kilo",pa:4.48},{n:"Poivrons mélangés",u:"Kilo",pa:4.48},{n:"Pommes de terre",u:"Kilo",pa:1.4},{n:"Pommes Golden",u:"Kilo",pa:2.3},{n:"Raisins noirs",u:"Kilo",pa:6.5},{n:"Roquette",u:"kilo",pa:14.5},{n:"Salade  rampon suisse",u:"kilo",pa:22.0},{n:"Salade celeris hero",u:"2 kilos",pa:10.1},{n:"Salade de fruits frais",u:"kilo",pa:15.0},{n:"Salade Iceberg",u:"pièce",pa:1.78},{n:"Salade verte",u:"pièce",pa:1.78},{n:"Tomates cerises",u:"Kilo",pa:7.5},{n:"Tomates",u:"Kilo",pa:2.9},{n:"Trevise suisse",u:"kilo",pa:5.5}]}];
 
@@ -325,7 +349,7 @@ const PASSWORD = "1111";
 
 const T = {
   it:{
-    appCat:"Inventario", bar:"BAR", resto:"RESTO", cuisine:"CUISINE", counted:"Contati",
+    appCat:"Inventario", bar:"BAR", cave:"CAVE", resto:"RESTO", cuisine:"CUISINE", counted:"Contati",
     search:"Cerca prodotto", buy:"Acquisto",
     tipDec:"I tasti + e − cambiano la quantità di 0,10. Puoi anche scrivere a mano.",
     tipInt:"I tasti + e − cambiano la quantità di 1. Puoi anche scrivere a mano.",
@@ -345,7 +369,7 @@ const T = {
     pwdWrong:"Password errata", pwdOk:"Sblocca",
   },
   fr:{
-    appCat:"Inventaire", bar:"BAR", resto:"RESTO", cuisine:"CUISINE", counted:"Comptés",
+    appCat:"Inventaire", bar:"BAR", cave:"CAVE", resto:"RESTO", cuisine:"CUISINE", counted:"Comptés",
     search:"Chercher un produit", buy:"Achat",
     tipDec:"Les touches + et − changent la quantité de 0,10. Vous pouvez aussi saisir à la main.",
     tipInt:"Les touches + et − changent la quantité de 1. Vous pouvez aussi saisir à la main.",
@@ -365,7 +389,7 @@ const T = {
     pwdWrong:"Mot de passe incorrect", pwdOk:"Déverrouiller",
   },
   en:{
-    appCat:"Inventory", bar:"BAR", resto:"RESTO", cuisine:"CUISINE", counted:"Counted",
+    appCat:"Inventory", bar:"BAR", cave:"CAVE", resto:"RESTO", cuisine:"CUISINE", counted:"Counted",
     search:"Search product", buy:"Cost",
     tipDec:"The + and − keys change the quantity by 0.10. You can also type manually.",
     tipInt:"The + and − keys change the quantity by 1. You can also type manually.",
@@ -417,10 +441,11 @@ function load(){
 
 function ensureCat(){
   const id=CAT().id;
-  if(!counts[id]) counts[id] = CAT().zona==='doppia' ? {bar:{},resto:{}} : {single:{}};
+  if(!counts[id]) counts[id] = CAT().zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
   if(CAT().zona==='doppia'){
     if(!counts[id].bar) counts[id].bar={};
     if(!counts[id].resto) counts[id].resto={};
+    if(!counts[id].cave) counts[id].cave={};
   }else{
     if(!counts[id].single) counts[id].single={};
   }
@@ -519,13 +544,19 @@ function updateProgress(){
   let done;
   if(CAT().zona==='doppia'){
     const dB=Object.keys(counts[id].bar).length;
+    const dC=Object.keys(counts[id].cave||{}).length;
     const dR=Object.keys(counts[id].resto).length;
-    document.getElementById('badgeBar').textContent=dB;
-    document.getElementById('badgeResto').textContent=dR;
-    done=zone==='bar'?dB:dR;
+    const eBar=document.getElementById('badgeBar');
+    const eCave=document.getElementById('badgeCave');
+    const eResto=document.getElementById('badgeResto');
+    if(eBar) eBar.textContent=dB;
+    if(eCave) eCave.textContent=dC;
+    if(eResto) eResto.textContent=dR;
+    done = zone==='bar'?dB : (zone==='cave'?dC : dR);
   }else{
     done=Object.keys(counts[id].single).length;
-    document.getElementById('badgeSingle') && (document.getElementById('badgeSingle').textContent=done);
+    const eS=document.getElementById('badgeSingle');
+    if(eS) eS.textContent=done;
   }
   document.getElementById('progText').textContent=done+" / "+total;
   const pct=total?Math.round(done/total*100):0;
@@ -548,13 +579,17 @@ function buildTabs(){
   const tabs=document.getElementById('tabs');
   const doppia = CAT().zona==='doppia';
   tabs.className="tabs";
-  // 3 schede SEMPRE presenti: Bar | Resto | Cuisine.
+  // 4 schede SEMPRE presenti: Bar | Cave | Resto | Cuisine.
+  // Cave Bowling è una sotto-zona del bar (sommata al bar nell'export).
   // Attive solo quelle che hanno senso per la categoria corrente.
-  const tBar = doppia, tResto = doppia, tCuisine = !doppia;
+  const tBar = doppia, tCave = doppia, tResto = doppia, tCuisine = !doppia;
   tabs.innerHTML=
     '<button class="tab bar'+(tBar?'':' disabled')+(zone==='bar'&&tBar?' active':'')+'" '+
       'data-zone="bar" '+(tBar?'onclick="switchZone(\'bar\')"':'')+'>'+
       '<span>'+L().bar+'</span> <span class="badge" id="badgeBar">0</span></button>'+
+    '<button class="tab cave'+(tCave?'':' disabled')+(zone==='cave'&&tCave?' active':'')+'" '+
+      'data-zone="cave" '+(tCave?'onclick="switchZone(\'cave\')"':'')+'>'+
+      '<span>'+L().cave+'</span> <span class="badge" id="badgeCave">0</span></button>'+
     '<button class="tab resto'+(tResto?'':' disabled')+(zone==='resto'&&tResto?' active':'')+'" '+
       'data-zone="resto" '+(tResto?'onclick="switchZone(\'resto\')"':'')+'>'+
       '<span>'+L().resto+'</span> <span class="badge" id="badgeResto">0</span></button>'+
@@ -695,11 +730,17 @@ function buildRows(){
   const id=CAT().id;
   return CAT().items.map((p,idx)=>{
     if(CAT().zona==='doppia'){
-      const b=counts[id].bar[idx], r=counts[id].resto[idx];
-      const bv=(b!==undefined&&b!==null&&b!=="")?b:"";
-      const rv=(r!==undefined&&r!==null&&r!=="")?r:"";
-      const tot=(bv===""&&rv==="")?"":((Number(b)||0)+(Number(r)||0));
-      return {n:idx+1,nome:p.n,unita:p.u,pa:prezzoDi(idx),bar:bv,resto:rv,tot:tot,doppia:true};
+      const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+      const hasB=(b!==undefined&&b!==null&&b!=="");
+      const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+      const hasR=(r!==undefined&&r!==null&&r!=="");
+      // BAR EFFETTIVO = bar + cave (la cave Bowling si somma al bar)
+      const barTot = (hasB||hasC) ? ((Number(b)||0)+(Number(cv)||0)) : "";
+      const rv=hasR?r:"";
+      const tot=(barTot===""&&rv==="")?"":((Number(barTot)||0)+(Number(r)||0));
+      return {n:idx+1,nome:p.n,unita:p.u,pa:prezzoDi(idx),
+              bar:hasB?b:"",cave:hasC?cv:"",resto:rv,
+              barTot:barTot, tot:tot, doppia:true};
     }else{
       const s=counts[id].single[idx];
       const sv=(s!==undefined&&s!==null&&s!=="")?s:"";
@@ -712,7 +753,8 @@ function openExport(){
   const id=CAT().id;
   let summ;
   if(CAT().zona==='doppia'){
-    summ='Bar '+Object.keys(counts[id].bar).length+' · Resto '+Object.keys(counts[id].resto).length;
+    const dC = Object.keys(counts[id].cave||{}).length;
+    summ='Bar '+Object.keys(counts[id].bar).length+' · Cave '+dC+' · Resto '+Object.keys(counts[id].resto).length;
   }else{
     summ=L().counted+' '+Object.keys(counts[id].single).length;
   }
@@ -731,9 +773,9 @@ function buildRiepilogo(){
   let n=0;
   buildRows().forEach(r=>{
     if(r.doppia){
-      if(r.bar!==""||r.resto!==""){
+      if(r.barTot!==""||r.resto!==""){
         n++;
-        const b=r.bar===""?"0":String(r.bar).replace('.',',');
+        const b=r.barTot===""?"0":String(r.barTot).replace('.',',');
         const rr=r.resto===""?"0":String(r.resto).replace('.',',');
         const tt=String(r.tot).replace('.',',');
         t+=r.nome+": "+b+" / "+rr+" / "+tt+"\n";
@@ -771,8 +813,10 @@ function buildCatBlock(ci, pageBreak){
   const id = c.id;
   const doppia = c.zona==='doppia';
   // assicuro che il counts esista anche per categorie non ancora aperte
-  if(!counts[id]) counts[id] = doppia ? {bar:{},resto:{}} : {single:{}};
+  if(!counts[id]) counts[id] = doppia ? {bar:{},resto:{},cave:{}} : {single:{}};
+  if(doppia && !counts[id].cave) counts[id].cave={};
   const dB = doppia ? Object.keys(counts[id].bar||{}).length : 0;
+  const dC = doppia ? Object.keys(counts[id].cave||{}).length : 0;
   const dR = doppia ? Object.keys(counts[id].resto||{}).length : 0;
   const dS = !doppia ? Object.keys(counts[id].single||{}).length : 0;
   const tot = c.items.length;
@@ -781,12 +825,16 @@ function buildCatBlock(ci, pageBreak){
     const pa = (prezzi[id] && prezzi[id][idx]!==undefined && prezzi[id][idx]!==null && prezzi[id][idx]!=="")
                ? Number(prezzi[id][idx]) : p.pa;
     if(doppia){
-      const b=counts[id].bar[idx], r=counts[id].resto[idx];
-      const bv=(b!==undefined&&b!==null&&b!=="")?b:"–";
-      const rv=(r!==undefined&&r!==null&&r!=="")?r:"–";
-      const tv=(bv==="–"&&rv==="–")?"–":((Number(b)||0)+(Number(r)||0));
+      const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+      const hasB=(b!==undefined&&b!==null&&b!=="");
+      const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+      const hasR=(r!==undefined&&r!==null&&r!=="");
+      // BAR del PDF = bar + cave bowling (somma)
+      const barTot = (hasB||hasC) ? ((Number(b)||0)+(Number(cv)||0)) : "–";
+      const rv = hasR ? r : "–";
+      const tv = (barTot==="–" && rv==="–") ? "–" : ((Number(barTot)||0)+(Number(r)||0));
       trs+='<tr><td>'+(idx+1)+'</td><td>'+p.n+'</td><td>'+(p.u||'-')+'</td>'+
-           '<td class="num">'+bv+'</td><td class="num">'+rv+'</td><td class="num">'+tv+'</td></tr>';
+           '<td class="num">'+barTot+'</td><td class="num">'+rv+'</td><td class="num">'+tv+'</td></tr>';
     }else{
       const s=counts[id].single[idx];
       const sv=(s!==undefined&&s!==null&&s!=="")?s:"–";
@@ -797,7 +845,7 @@ function buildCatBlock(ci, pageBreak){
     ? '<th>#</th><th>'+L().tProd+'</th><th>Unité</th><th>Qté Bar</th><th>Qté Resto</th><th>Qté '+L().tTot+'</th>'
     : '<th>#</th><th>'+L().tProd+'</th><th>Unité</th><th>Qté '+L().cuisine+'</th>';
   const sub = doppia
-    ? 'Bar: '+dB+'/'+tot+' · Resto: '+dR+'/'+tot
+    ? 'Bar(+Cave): '+Math.max(dB,dC)+' · Resto: '+dR+' · su '+tot
     : L().cuisine+': '+dS+'/'+tot;
   const breakCls = pageBreak ? ' class="p-break"' : '';
   return '<section'+breakCls+'>'+
@@ -847,6 +895,202 @@ function printPDF(mode){
   setTimeout(()=>window.print(),300);
 }
 
+/* --- STATISTICHE FINALI (valori CHF) --- */
+function computeStats(){
+  // per ogni categoria calcolo: numero prodotti contati, valore totale CHF
+  // Bar effettivo = bar + cave. Per le categorie singola = single.
+  const out = { cat:[], totBoissons:0, totCuisine:0, totGen:0,
+                contatiBoissons:0, totaliBoissons:0,
+                contatiCuisine:0, totaliCuisine:0 };
+  CATEGORIE.forEach((c,ci)=>{
+    const id=c.id;
+    if(!counts[id]) counts[id] = c.zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
+    let valore=0, contati=0;
+    const doppia = c.zona==='doppia';
+    c.items.forEach((p,idx)=>{
+      const pa = (prezzi[id] && prezzi[id][idx]!==undefined && prezzi[id][idx]!==null && prezzi[id][idx]!=="")
+                 ? Number(prezzi[id][idx]) : p.pa;
+      let qta = 0;
+      let hasQta = false;
+      if(doppia){
+        const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+        const hasB=(b!==undefined&&b!==null&&b!=="");
+        const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+        const hasR=(r!==undefined&&r!==null&&r!=="");
+        if(hasB||hasC||hasR){
+          qta = (Number(b)||0) + (Number(cv)||0) + (Number(r)||0);
+          hasQta = true;
+        }
+      }else{
+        const s=counts[id].single[idx];
+        if(s!==undefined&&s!==null&&s!==""){
+          qta = Number(s)||0;
+          hasQta = true;
+        }
+      }
+      if(hasQta){
+        contati++;
+        valore += qta * pa;
+      }
+    });
+    valore = Math.round(valore*100)/100;
+    const isBoisson = doppia; // bevande = doppia, cucina = singola
+    out.cat.push({nome:c.nome, valore:valore, contati:contati, totale:c.items.length, isBoisson:isBoisson});
+    if(isBoisson){
+      out.totBoissons += valore;
+      out.contatiBoissons += contati;
+      out.totaliBoissons += c.items.length;
+    }else{
+      out.totCuisine += valore;
+      out.contatiCuisine += contati;
+      out.totaliCuisine += c.items.length;
+    }
+  });
+  out.totBoissons = Math.round(out.totBoissons*100)/100;
+  out.totCuisine  = Math.round(out.totCuisine*100)/100;
+  out.totGen      = Math.round((out.totBoissons + out.totCuisine)*100)/100;
+  return out;
+}
+
+function fmtCHF(n){ return new Intl.NumberFormat('fr-CH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n); }
+
+function showStats(){
+  const s = computeStats();
+  let html = '<div style="border:1px solid rgba(15,14,12,.15);border-radius:9px;overflow:hidden">';
+  html += '<div style="background:var(--ink);color:#fff;padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.05em">BOISSONS</div>';
+  s.cat.filter(c=>c.isBoisson).forEach(c=>{
+    html += '<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid rgba(15,14,12,.06);font-size:13px">'+
+      '<span>'+c.nome+' <span style="color:var(--muted);font-size:11px">('+c.contati+'/'+c.totale+')</span></span>'+
+      '<b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(c.valore)+'</b></div>';
+  });
+  html += '<div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--paper-2);font-size:13px">'+
+    '<b>Somme Boissons</b><b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(s.totBoissons)+'</b></div>';
+  html += '<div style="background:var(--ink);color:#fff;padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.05em">CUISINE</div>';
+  s.cat.filter(c=>!c.isBoisson).forEach(c=>{
+    html += '<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid rgba(15,14,12,.06);font-size:13px">'+
+      '<span>'+c.nome+' <span style="color:var(--muted);font-size:11px">('+c.contati+'/'+c.totale+')</span></span>'+
+      '<b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(c.valore)+'</b></div>';
+  });
+  html += '<div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--paper-2);font-size:13px">'+
+    '<b>Somme Cuisine</b><b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(s.totCuisine)+'</b></div>';
+  html += '<div style="display:flex;justify-content:space-between;padding:11px 12px;background:var(--ink);color:#fff;font-size:15px">'+
+    '<b>TOTAL INVENTAIRE</b><b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(s.totGen)+'</b></div>';
+  html += '</div>';
+  document.getElementById('statsArea').innerHTML = html;
+  document.getElementById('statsModal').classList.add('show');
+}
+function closeStats(){ document.getElementById('statsModal').classList.remove('show'); }
+
+function printStats(){
+  const s = computeStats();
+  const d=new Date();
+  const loc=lang==='en'?'en-GB':(lang==='fr'?'fr-FR':'it-IT');
+  const dataStr=d.toLocaleDateString(loc,{day:'2-digit',month:'long',year:'numeric'});
+  let rows='';
+  s.cat.filter(c=>c.isBoisson).forEach(c=>{
+    rows+='<tr><td>'+c.nome+'</td><td class="num">'+c.contati+'/'+c.totale+'</td><td class="num">CHF '+fmtCHF(c.valore)+'</td></tr>';
+  });
+  rows+='<tr style="background:#f0e8d4"><td colspan="2"><b>Somme Boissons</b></td><td class="num"><b>CHF '+fmtCHF(s.totBoissons)+'</b></td></tr>';
+  s.cat.filter(c=>!c.isBoisson).forEach(c=>{
+    rows+='<tr><td>'+c.nome+'</td><td class="num">'+c.contati+'/'+c.totale+'</td><td class="num">CHF '+fmtCHF(c.valore)+'</td></tr>';
+  });
+  rows+='<tr style="background:#f0e8d4"><td colspan="2"><b>Somme Cuisine</b></td><td class="num"><b>CHF '+fmtCHF(s.totCuisine)+'</b></td></tr>';
+  rows+='<tr style="background:#0f0e0c;color:#fff"><td colspan="2"><b>TOTAL INVENTAIRE</b></td><td class="num"><b>CHF '+fmtCHF(s.totGen)+'</b></td></tr>';
+  document.getElementById('printArea').innerHTML=
+    '<div class="p-title">Récapitulatif Inventaire — The Bowling Hôtel</div>'+
+    '<div class="p-sub">'+L().confDate+' '+dataStr+'</div>'+
+    '<table class="p-table"><thead><tr><th>Catégorie</th><th>Comptés</th><th>Valeur</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="p-foot">The Bowling Hôtel — Récapitulatif.</div>';
+  showToast(L().ttPrint);
+  setTimeout(()=>window.print(),300);
+}
+
+/* --- EXPORT EXCEL --- */
+function downloadExcel(){
+  if(typeof XLSX==='undefined'){ showToast("Excel non disponibile, riprova"); return; }
+  const wb = XLSX.utils.book_new();
+  const d = new Date();
+  const dStr = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+
+  // FOGLIO 1: Récapitulatif (statistiche)
+  const s = computeStats();
+  const recap = [
+    ["THE BOWLING HÔTEL — INVENTAIRE PHYSIQUE MARCHANDISES"],
+    ["Date: "+dStr],
+    [],
+    ["BOISSONS","","Comptés","Total","Valeur CHF"]
+  ];
+  s.cat.filter(c=>c.isBoisson).forEach((c,i)=>{
+    recap.push([i+1, c.nome, c.contati, c.totale, c.valore]);
+  });
+  recap.push(["","Somme Boissons","","",s.totBoissons]);
+  recap.push([]);
+  recap.push(["CUISINE","","Comptés","Total","Valeur CHF"]);
+  s.cat.filter(c=>!c.isBoisson).forEach((c,i)=>{
+    recap.push([i+1, c.nome, c.contati, c.totale, c.valore]);
+  });
+  recap.push(["","Somme Cuisine","","",s.totCuisine]);
+  recap.push([]);
+  recap.push(["","TOTAL INVENTAIRE","","",s.totGen]);
+
+  const wsRecap = XLSX.utils.aoa_to_sheet(recap);
+  wsRecap['!cols']=[{wch:5},{wch:30},{wch:10},{wch:8},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsRecap, "Récapitulatif");
+
+  // UN FOGLIO PER OGNI CATEGORIA, nell'ordine
+  CATEGORIE.forEach(c=>{
+    const id=c.id;
+    if(!counts[id]) counts[id] = c.zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
+    if(c.zona==='doppia' && !counts[id].cave) counts[id].cave={};
+    const aoa = [];
+    aoa.push(["Inventaire "+c.nome+" — TBH — "+dStr]);
+    aoa.push([]);
+    if(c.zona==='doppia'){
+      aoa.push(["#","Désignation","Unité","Prix achat","Qté Bar","Qté Resto","Qté Total","Valeur CHF"]);
+      c.items.forEach((p,idx)=>{
+        const pa = (prezzi[id]&&prezzi[id][idx]!==undefined&&prezzi[id][idx]!==null&&prezzi[id][idx]!=="")
+                   ? Number(prezzi[id][idx]) : p.pa;
+        const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+        const hasB=(b!==undefined&&b!==null&&b!=="");
+        const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+        const hasR=(r!==undefined&&r!==null&&r!=="");
+        // BAR = bar + cave
+        const barTot = (hasB||hasC) ? ((Number(b)||0)+(Number(cv)||0)) : null;
+        const rest = hasR ? Number(r) : null;
+        const tot = (barTot===null && rest===null) ? null : ((barTot||0)+(rest||0));
+        const val = tot===null ? null : Math.round(tot*pa*100)/100;
+        aoa.push([idx+1, p.n, p.u, pa, barTot, rest, tot, val]);
+      });
+    }else{
+      aoa.push(["#","Désignation","Unité","Prix achat","Qté","Valeur CHF"]);
+      c.items.forEach((p,idx)=>{
+        const pa = (prezzi[id]&&prezzi[id][idx]!==undefined&&prezzi[id][idx]!==null&&prezzi[id][idx]!=="")
+                   ? Number(prezzi[id][idx]) : p.pa;
+        const sv = counts[id].single[idx];
+        const qta = (sv!==undefined&&sv!==null&&sv!=="") ? Number(sv) : null;
+        const val = qta===null ? null : Math.round(qta*pa*100)/100;
+        aoa.push([idx+1, p.n, p.u, pa, qta, val]);
+      });
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    if(c.zona==='doppia'){
+      ws['!cols']=[{wch:4},{wch:32},{wch:9},{wch:11},{wch:9},{wch:9},{wch:9},{wch:12}];
+    }else{
+      ws['!cols']=[{wch:4},{wch:32},{wch:9},{wch:11},{wch:9},{wch:12}];
+    }
+    // i nomi dei fogli Excel hanno limite di 31 char
+    const sheetName = c.nome.substring(0,31).replace(/[\\\/\?\*\[\]]/g,'-');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  try{
+    XLSX.writeFile(wb, "Inventaire_TBH_"+dStr+".xlsx");
+    showToast("Excel scaricato ✓");
+  }catch(e){
+    showToast("Errore Excel: usa il PDF");
+  }
+}
+
 /* --- RESET (con password) --- */
 function confirmReset(){
   document.getElementById('rsPwdArea').innerHTML=
@@ -860,7 +1104,7 @@ function tryReset(){
   if(v!==PASSWORD){ showToast(L().pwdWrong); document.getElementById('pwdReset').value=""; return; }
   ensureCat();
   const id=CAT().id;
-  counts[id]= CAT().zona==='doppia' ? {bar:{},resto:{}} : {single:{}};
+  counts[id]= CAT().zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
   save(); render(); closeReset();
   showToast(L().ttReset);
 }
