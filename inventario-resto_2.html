@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f0e0c">
+<title>TBH · Resto</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#0f0e0c; --paper:#f4efe4; --paper-2:#e7ddc8;
+    --bar:#a3320b; --resto:#1f5f3f; --accent:#b8860b;
+    --muted:#6b6358; --ok:#15803d; --warn:#b91c1c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:16px;line-height:1.4;overscroll-behavior:none;
+  }
+  header{position:sticky;top:0;z-index:50;background:var(--ink);color:var(--paper);padding:env(safe-area-inset-top) 0 0}
+  .h-top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 8px}
+  .h-title{font-weight:700;font-size:15px}
+  .h-title .cat{color:var(--accent);font-weight:600;font-size:12px;display:block;letter-spacing:.08em;text-transform:uppercase}
+  .h-right{display:flex;align-items:center;gap:10px}
+  .h-save{font-size:11px;color:#86efac;display:flex;align-items:center;gap:5px}
+  .h-save .dot{width:7px;height:7px;border-radius:50%;background:#86efac}
+  .gear{
+    width:34px;height:34px;border-radius:8px;border:1px solid rgba(244,239,228,.3);
+    background:transparent;color:var(--paper);font-size:17px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex:none;
+  }
+  .gear:active{background:rgba(244,239,228,.15)}
+
+  /* selettore categoria */
+  .cat-bar{padding:8px 12px;background:#1a1410;border-top:1px solid rgba(244,239,228,.12)}
+  .cat-select{
+    width:100%;padding:10px 12px;font-size:14px;font-weight:700;font-family:inherit;
+    background:var(--paper);color:var(--ink);border:none;border-radius:8px;
+  }
+
+  .tabs{display:flex;border-top:1px solid rgba(244,239,228,.15)}
+  .tab{
+    flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:700;
+    letter-spacing:.05em;background:var(--ink);color:rgba(244,239,228,.5);
+    border:none;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;
+  }
+  .tab .badge{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:rgba(244,239,228,.15)}
+  .tab.active.bar{color:#fff;border-bottom-color:var(--bar);background:#2a1410}
+  .tab.active.cave{color:#fff;border-bottom-color:#7a2408;background:#1f0e08}
+  .tab.active.resto{color:#fff;border-bottom-color:var(--resto);background:#0f2418}
+  .tab.active.cuisine{color:#fff;border-bottom-color:var(--accent);background:#2a2410}
+  .tab.active .badge{background:var(--accent);color:var(--ink)}
+  .tab.disabled{opacity:.32;cursor:default}
+  .tab.disabled .badge{display:none}
+  .item.cave-mode .qty-input.has-val{background:#ffdcc0;border-color:#7a2408}
+
+  .searchbar{padding:10px 16px;background:var(--paper-2);border-bottom:1px solid rgba(15,14,12,.12);position:sticky;top:0;z-index:40}
+  .searchbar input{
+    width:100%;padding:11px 14px;font-size:15px;border:1px solid rgba(15,14,12,.25);
+    border-radius:9px;background:var(--paper);color:var(--ink);font-family:inherit;
+  }
+  .searchbar input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+
+  .progress{
+    padding:8px 16px;font-size:12px;color:var(--muted);background:var(--paper-2);
+    display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid rgba(15,14,12,.1);
+  }
+  .progress .pct{font-weight:700;color:var(--ink)}
+  .pbar{height:4px;background:rgba(15,14,12,.12);border-radius:2px;overflow:hidden;flex:1;margin:0 12px}
+  .pbar span{display:block;height:100%;background:var(--accent);transition:width .25s}
+  .tipbar{background:#fff7e0;padding:6px 16px;font-size:11.5px;color:#6b6358;border-bottom:1px solid rgba(15,14,12,.1)}
+
+  .list{padding:6px 0 140px}
+  .item{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(15,14,12,.08);background:var(--paper)}
+  .item.counted{background:linear-gradient(90deg,rgba(184,134,11,.09),transparent)}
+  .item-num{font-size:11px;color:var(--muted);font-weight:700;width:26px;text-align:right;flex:none}
+  .item-info{flex:1;min-width:0}
+  .item-name{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item-meta{font-size:11px;color:var(--muted);margin-top:1px}
+  .item-meta .ref{background:var(--paper-2);padding:1px 5px;border-radius:3px;margin-right:5px}
+  .qty-box{display:flex;align-items:center;gap:6px}
+  .qty-btn{
+    width:34px;height:34px;border-radius:8px;border:1px solid rgba(15,14,12,.25);
+    background:var(--paper-2);color:var(--ink);font-size:20px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;line-height:1;padding-bottom:2px;flex:none;
+  }
+  .qty-btn:active{background:var(--ink);color:var(--paper)}
+  .qty-input{
+    width:62px;height:34px;text-align:center;font-size:17px;font-weight:700;
+    border:1px solid rgba(15,14,12,.3);border-radius:8px;background:var(--paper);
+    color:var(--ink);font-family:inherit;
+  }
+  .qty-input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .item.bar-mode .qty-input.has-val{background:#fff0e8;border-color:var(--bar)}
+  .item.resto-mode .qty-input.has-val{background:#e8f3ec;border-color:var(--resto)}
+  .item.single-mode .qty-input.has-val{background:#fff7e0;border-color:var(--accent)}
+  .empty-search{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px}
+
+  .footer{
+    position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--ink);color:var(--paper);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;
+  }
+  .footer button{flex:1;padding:13px 10px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-export{background:var(--accent);color:var(--ink)}
+  .btn-reset{background:transparent;color:rgba(244,239,228,.6);border:1px solid rgba(244,239,228,.3);flex:0 0 90px}
+  .footer button:active{transform:scale(.98)}
+
+  .modal{position:fixed;inset:0;z-index:100;background:rgba(15,14,12,.7);display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.show{display:flex}
+  .modal-box{background:var(--paper);border-radius:14px;padding:22px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto}
+  .modal-box h3{font-size:19px;margin-bottom:6px}
+  .modal-box p{font-size:13.5px;color:var(--muted);margin-bottom:16px}
+
+  .col-block{margin-bottom:16px;border:1px solid rgba(15,14,12,.18);border-radius:10px;overflow:hidden}
+  .col-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-weight:700;font-size:13px;color:#fff}
+  .col-head .where{font-size:11px;font-weight:600;opacity:.85}
+  .col-data{
+    font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;background:var(--paper-2);
+    padding:10px 14px;max-height:150px;overflow-y:auto;white-space:pre-wrap;line-height:1.5;
+    color:var(--ink);-webkit-user-select:text;user-select:text;
+  }
+  .modal-actions{display:flex;gap:10px;margin-top:4px}
+  .modal-actions button{flex:1;padding:12px;border-radius:9px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+  .m-primary{background:var(--ink);color:var(--paper)}
+  .m-ghost{background:var(--paper-2);color:var(--ink)}
+  .m-pdf{background:var(--accent);color:var(--ink)}
+  .hint{font-size:12px;color:var(--muted);background:#fff7e0;border-left:3px solid var(--accent);padding:9px 12px;border-radius:6px;margin-bottom:16px;line-height:1.45}
+  .bigsteps{font-size:12.5px;color:var(--ink);background:var(--paper-2);padding:11px 13px;border-radius:8px;margin-bottom:16px;line-height:1.6}
+
+  .set-section{margin-bottom:20px}
+  .set-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .lang-row{display:flex;gap:8px}
+  .lang-btn{
+    flex:1;padding:11px;border:1px solid rgba(15,14,12,.25);border-radius:9px;
+    background:var(--paper-2);color:var(--ink);font-size:14px;font-weight:700;
+    cursor:pointer;font-family:inherit;
+  }
+  .lang-btn.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .price-cat-sel{
+    width:100%;padding:9px 12px;font-size:13px;font-weight:700;font-family:inherit;
+    border:1px solid rgba(15,14,12,.25);border-radius:8px;background:var(--paper);
+    color:var(--ink);margin-bottom:8px;
+  }
+  .price-list{max-height:38vh;overflow-y:auto;border:1px solid rgba(15,14,12,.15);border-radius:9px}
+  .price-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(15,14,12,.08)}
+  .price-row:last-child{border-bottom:none}
+  .price-name{flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .price-input{
+    width:78px;height:32px;text-align:right;font-size:14px;font-weight:700;
+    border:1px solid rgba(15,14,12,.3);border-radius:7px;background:var(--paper);
+    color:var(--ink);font-family:inherit;padding-right:8px;
+  }
+  .price-input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .price-chf{font-size:11px;color:var(--muted);font-weight:700}
+  .locked{text-align:center;padding:24px 10px;color:var(--muted);font-size:13px}
+  .pwd-input{
+    width:100%;padding:12px;font-size:20px;text-align:center;letter-spacing:.3em;
+    border:1px solid rgba(15,14,12,.3);border-radius:9px;background:var(--paper);
+    font-family:inherit;margin:12px 0;
+  }
+
+  .toast{
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:var(--paper);padding:11px 20px;border-radius:24px;
+    font-size:13px;font-weight:600;z-index:200;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* === BOTTONE BOTTIGLIA (solo Spiritueux) === */
+  .qty-btn.bottle-btn{background:#fef3c7;border-color:#fbbf24;font-size:16px;padding-bottom:0}
+  .qty-btn.bottle-btn:active{background:#fbbf24;color:#fff}
+
+  /* === MODAL CURSORE BOTTIGLIA === */
+  .bottle-modal-box{max-width:420px;padding:18px}
+  .bm-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  .bm-name{font-weight:700;font-size:16px}
+  .bm-meta{font-size:11px;color:var(--muted);margin-top:1px}
+  .bm-close{background:transparent;border:none;font-size:22px;cursor:pointer;color:var(--muted);padding:0;line-height:1}
+
+  .bm-sec-intere{
+    display:flex;align-items:center;gap:12px;padding:10px;
+    background:var(--paper-2);border-radius:10px;margin-bottom:10px;
+  }
+  .bm-sec-label{
+    flex:1;font-size:11px;color:var(--muted);font-weight:700;
+    letter-spacing:.03em;text-transform:uppercase;line-height:1.2;
+  }
+  .bm-sec-label .big{display:block;font-size:13px;color:var(--ink);text-transform:none;letter-spacing:0;margin-top:1px}
+  .bm-intere-ctrl{display:flex;align-items:center;gap:6px}
+  .bm-intere-btn{
+    width:36px;height:36px;border-radius:8px;border:1px solid rgba(15,14,12,.2);
+    background:#fff;font-size:20px;font-weight:700;cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;justify-content:center;line-height:1;padding-bottom:2px;
+  }
+  .bm-intere-btn:active{background:var(--ink);color:#fff}
+  .bm-intere-input{
+    width:56px;height:36px;text-align:center;font-size:17px;font-weight:800;
+    border:1px solid rgba(15,14,12,.25);border-radius:8px;background:#fff;
+    font-family:inherit;font-variant-numeric:tabular-nums;
+  }
+
+  .bm-sec-aperta{
+    padding:10px;background:#fff;border:1px solid rgba(15,14,12,.08);
+    border-radius:10px;margin-bottom:10px;
+  }
+  .bm-aperta-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .bm-aperta-pct{font-size:13px;font-weight:800;color:var(--info);font-variant-numeric:tabular-nums}
+
+  .bm-stage{
+    position:relative;height:190px;display:flex;align-items:center;justify-content:center;
+    user-select:none;-webkit-user-select:none;
+  }
+  .bm-svg{height:180px;width:auto;overflow:visible}
+  .bm-cursor-line{
+    position:absolute;left:50%;transform:translateX(-50%);
+    width:180px;height:3px;background:var(--info);border-radius:2px;
+    box-shadow:0 1px 4px rgba(30,64,175,.4);
+    display:flex;align-items:center;justify-content:space-between;
+    pointer-events:none;
+  }
+  .bm-cursor-line::before,.bm-cursor-line::after{
+    content:'';width:13px;height:13px;border-radius:50%;background:var(--info);
+    border:3px solid #fff;box-shadow:0 1px 4px rgba(30,64,175,.4);
+  }
+  .bm-cursor-line::before{margin-left:-7px}
+  .bm-cursor-line::after{margin-right:-7px}
+  .bm-cursor-hit{
+    position:absolute;left:50%;transform:translateX(-50%);
+    width:220px;height:38px;touch-action:none;
+  }
+  .bm-cursor-line.dragging{height:5px;box-shadow:0 2px 8px rgba(30,64,175,.6)}
+
+  .bm-presets{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+  .bm-preset-btn{
+    flex:1;min-width:0;padding:7px 2px;border:1px solid rgba(15,14,12,.15);
+    background:var(--paper-2);color:var(--ink);border-radius:6px;
+    font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
+  }
+  .bm-preset-btn.active{background:var(--info);color:#fff;border-color:var(--info)}
+  .bm-preset-btn.vuota{background:#fee2e2;color:#991b1b}
+  .bm-preset-btn.vuota.active{background:#b91c1c;color:#fff;border-color:#b91c1c}
+
+  .bm-totale{
+    margin-bottom:12px;padding:10px 12px;background:var(--ink);color:#fff;
+    border-radius:9px;display:flex;justify-content:space-between;align-items:center;
+  }
+  .bm-totale .lbl{font-size:11px;color:rgba(255,255,255,.65);font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+  .bm-totale .num{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+
+  #printArea{display:none}
+  @media print{
+    body>*{display:none!important}
+    #printArea{display:block!important;padding:0}
+    @page{margin:1.5cm}
+    .p-break{page-break-before:always;break-before:page}
+    .p-doc-head{font-size:11px;color:#555;margin-bottom:10px}
+    .p-title{font-size:20px;font-weight:700;margin-bottom:2px}
+    .p-sub{font-size:12px;color:#555;margin-bottom:14px}
+    .p-table{width:100%;border-collapse:collapse;font-size:11px}
+    .p-table th{background:#0f0e0c;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+    .p-table td{padding:5px 8px;border-bottom:1px solid #ddd}
+    .p-table td.num{text-align:center;font-weight:700;width:55px}
+    .p-table tr:nth-child(even) td{background:#f4f0e6}
+    .p-foot{margin-top:16px;font-size:11px;color:#555}
+    /* copertina del PDF completo */
+    .p-cover{page-break-after:always;break-after:page;padding-top:60px}
+    .p-cover-title{font-size:32px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+    .p-cover-sub{font-size:16px;color:#444;margin-bottom:4px}
+    .p-cover-date{font-size:13px;color:#777;margin-bottom:36px}
+    .p-cover-list{border-top:2px solid #0f0e0c;padding-top:14px}
+    .p-cover-row{display:flex;justify-content:space-between;padding:7px 4px;font-size:13px;border-bottom:1px solid #e5e0d0}
+    .p-cover-row span:first-child{font-weight:600}
+    .p-cover-row span:last-child{color:#555;font-variant-numeric:tabular-nums}
+  }
+</style>
+</head>
+<body>
+
+<!-- OVERLAY LOGIN SETTORE -->
+<div id="loginOverlay" style="position:fixed;inset:0;z-index:9999;background:#1f5f3f;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:30px;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="font-size:12px;letter-spacing:.15em;opacity:.75;margin-bottom:8px;text-transform:uppercase">The Bowling Hôtel</div>
+  <div style="font-size:34px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">Inventario RESTO</div>
+  <div style="font-size:13px;opacity:.75;margin-bottom:28px">Inserisci la password del settore</div>
+  <input id="loginPwd" type="password" inputmode="numeric" autocapitalize="off" autocorrect="off" spellcheck="false" pattern="[0-9]*" placeholder="••••••••" autocomplete="off"
+         style="width:min(300px,90%);padding:14px;font-size:20px;text-align:center;border:none;border-radius:10px;letter-spacing:.3em;font-family:inherit;background:rgba(255,255,255,.95);color:#0f0e0c">
+  <div id="loginErr" style="font-size:13px;margin-top:12px;opacity:0;transition:opacity .2s;color:#fecaca">Password errata</div>
+  <button onclick="checkLogin()" style="margin-top:20px;padding:13px 42px;background:#0f0e0c;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Entra</button>
+  <div style="position:absolute;bottom:20px;font-size:10px;opacity:.5;letter-spacing:.08em">Settore: RESTO</div>
+</div>
+<script>
+const SETTORE_PASSWORD = "2222";
+function checkLogin(){
+  const v = document.getElementById('loginPwd').value;
+  if(v === SETTORE_PASSWORD){
+    try{ sessionStorage.setItem('tbh_resto_logged','1'); }catch(e){}
+    document.getElementById('loginOverlay').style.display = 'none';
+  } else {
+    const e = document.getElementById('loginErr');
+    e.style.opacity = '1';
+    document.getElementById('loginPwd').value = '';
+    setTimeout(()=>e.style.opacity='0', 2500);
+  }
+}
+// Se già loggato in questa sessione, nascondo overlay
+try{
+  if(sessionStorage.getItem('tbh_resto_logged') === '1'){
+    document.getElementById('loginOverlay').style.display = 'none';
+  }
+}catch(e){}
+document.getElementById('loginPwd').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') checkLogin();
+});
+// focus automatico
+setTimeout(()=>{ const i=document.getElementById('loginPwd'); if(i) i.focus(); }, 300);
+</script>
+
+
+<header style="position:relative">
+  <span style="position:absolute;top:env(safe-area-inset-top);right:52px;transform:translateY(10px);background:#1f5f3f;color:#fff;font-size:9px;font-weight:800;padding:3px 7px;border-radius:5px;letter-spacing:.1em">RESTO</span>
+  <div class="h-top">
+    <div class="h-title">
+      <span class="cat" id="hCat">Inventario</span>
+      The Bowling Hôtel
+    </div>
+    <div class="h-right">
+      <div class="h-save"><span class="dot"></span><span id="saveStatus">Salvato</span></div>
+      <button class="gear" onclick="openSettings()" title="Impostazioni">&#9881;</button>
+    </div>
+  </div>
+  <div class="cat-bar">
+    <select class="cat-select" id="catSelect" onchange="changeCategoria(this.value)"></select>
+  </div>
+  <div class="tabs" id="tabs">
+    <button class="tab bar active" data-zone="bar" onclick="switchZone('bar')"><span id="tabBar">BAR</span> <span class="badge" id="badgeBar">0</span></button>
+    <button class="tab resto" data-zone="resto" onclick="switchZone('resto')"><span id="tabResto">RESTO</span> <span class="badge" id="badgeResto">0</span></button>
+  </div>
+</header>
+
+<div class="searchbar">
+  <input type="text" id="search" placeholder="Cerca prodotto" autocomplete="off">
+</div>
+
+<div class="progress">
+  <span><span id="lblCounted">Contati</span>: <span class="pct" id="progText">0 / 0</span></span>
+  <div class="pbar"><span id="progBar" style="width:0%"></span></div>
+  <span class="pct" id="progPct">0%</span>
+</div>
+<div class="tipbar" id="tipBar"></div>
+
+<div class="list" id="list"></div>
+
+<div class="footer">
+  <button class="btn-reset" onclick="confirmReset()" id="btnReset">Azzera</button>
+  <button class="btn-export" onclick="openExport()" id="btnExport">Esporta PDF</button>
+</div>
+
+<!-- MODAL STATISTICHE FINALI -->
+<div class="modal" id="statsModal">
+  <div class="modal-box">
+    <h3>Statistiche inventario (CHF)</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:14px">
+      Valore totale dell'inventario per categoria, calcolato sulle quantità contate × prezzo d'acquisto.
+    </p>
+    <div id="statsArea"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="m-ghost" onclick="closeStats()">Chiudi</button>
+      <button class="m-pdf" onclick="printStats()">Stampa / PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EXPORT -->
+<div class="modal" id="exportModal">
+  <div class="modal-box">
+    <h3 id="exTitle">Esporta inventario</h3>
+    <p id="exDesc">Crea il PDF della conta da inviare alla contabile.</p>
+    <div class="hint" id="exHint"></div>
+    <div class="col-block">
+      <div class="col-head" style="background:var(--ink)">
+        <span id="exRecap">RIEPILOGO</span>
+        <span class="where" id="exportSummary"></span>
+      </div>
+      <div class="col-data" id="exportPreview"></div>
+    </div>
+    <div class="modal-actions" style="margin-bottom:8px">
+      <button class="m-pdf" style="font-size:15px;padding:14px" onclick="printPDF('all')" id="exBtnPdfAll">PDF tutte le categorie</button>
+    </div>
+    <div class="modal-actions" style="margin-bottom:8px">
+      <button class="m-pdf" style="background:var(--paper-2);color:var(--ink);font-size:14px;padding:12px" onclick="printPDF('one')" id="exBtnPdf">PDF questa categoria</button>
+    </div>
+    <div class="modal-actions" style="margin-bottom:8px">
+      <button class="m-pdf" style="background:#15803d;color:#fff;font-size:15px;padding:14px" onclick="downloadExcel()" id="exBtnXls">Excel tutte le categorie</button>
+    </div>
+    <div class="modal-actions" style="margin-bottom:10px">
+      <button class="m-pdf" style="background:var(--ink);color:#fff;font-size:14px;padding:12px" onclick="showStats()" id="exBtnStats">Statistiche finali (CHF)</button>
+    </div>
+    <div class="bigsteps" id="exSteps"></div>
+    <div class="modal-actions">
+      <button class="m-ghost" onclick="closeExport()" id="exBtnClose">Chiudi</button>
+      <button class="m-ghost" onclick="copyRiepilogo()" id="exBtnCopy">Copia testo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPOSTAZIONI -->
+<div class="modal" id="settingsModal">
+  <div class="modal-box">
+    <h3 id="setTitle">Impostazioni</h3>
+    <div class="set-section">
+      <div class="set-label" id="setLangLabel">Lingua</div>
+      <div class="lang-row">
+        <button class="lang-btn" data-lang="it" onclick="setLang('it')">Italiano</button>
+        <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">Français</button>
+        <button class="lang-btn" data-lang="en" onclick="setLang('en')">English</button>
+      </div>
+    </div>
+    <div class="set-section">
+      <div class="set-label" id="setPriceLabel">Aggiorna prezzi d'acquisto</div>
+      <div id="priceArea"></div>
+    </div>
+    <div class="set-section">
+      <div class="set-label">Storico inventari mensili</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Chiudi il mese corrente, rivedi i mesi passati, confronta tra mesi.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="m-primary" style="padding:11px;border:none;border-radius:8px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" onclick="openCloseMonth()">📦 Chiudi mese corrente</button>
+        <button class="m-ghost" style="padding:11px;border:none;border-radius:8px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" onclick="openHistory()">📚 Storico mesi salvati</button>
+        <button class="m-ghost" style="padding:11px;border:none;border-radius:8px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" onclick="openCompare()">↔️ Confronta due mesi</button>
+      </div>
+    </div>
+    <div class="set-section">
+      <div class="set-label">Importa / Esporta archivio</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Carica vecchi file Excel della contabile nello storico, o esporta tutto.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="m-ghost" style="padding:11px;border:none;border-radius:8px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" onclick="document.getElementById('xlsImport').click()">📥 Importa file Excel mese</button>
+        <input type="file" id="xlsImport" accept=".xlsx,.xls" style="display:none" onchange="importExcel(this)">
+        <button class="m-ghost" style="padding:11px;border:none;border-radius:8px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" onclick="exportArchivioCompleto()">📤 Excel storico (tutti i mesi)</button>
+        <button class="m-ghost" style="padding:11px;border:none;border-radius:8px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" onclick="exportFormatoContabile()">📋 Excel formato contabile</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="m-ghost" onclick="closeSettings()" id="setBtnClose">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHIUDI MESE -->
+<div class="modal" id="closeMonthModal">
+  <div class="modal-box">
+    <h3>Chiudi mese corrente</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Salva l'inventario attuale nello storico. Potrai sempre rivederlo e confrontarlo con altri mesi.</p>
+    <div class="field">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em;margin-bottom:4px;text-transform:uppercase">Mese e anno</label>
+      <input type="text" id="cmName" placeholder="es. Maggio 2026" style="width:100%;padding:11px 12px;font-size:15px;font-family:inherit;border:1px solid rgba(15,14,12,.25);border-radius:8px">
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em;margin-bottom:4px;text-transform:uppercase">Password (1111)</label>
+      <input type="password" id="cmPwd" inputmode="numeric" maxlength="8" placeholder="••••" style="width:100%;padding:11px 12px;font-size:18px;font-family:inherit;border:1px solid rgba(15,14,12,.25);border-radius:8px;text-align:center;letter-spacing:.3em">
+    </div>
+    <div style="margin-top:12px;padding:11px;background:#fff7e0;border-left:3px solid var(--accent);border-radius:6px;font-size:12.5px;line-height:1.5">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="cmReset" style="width:16px;height:16px">
+        <span>Azzera anche l'inventario attivo (per iniziare il mese nuovo pulito)</span>
+      </label>
+    </div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="m-ghost" onclick="closeCloseMonth()">Annulla</button>
+      <button class="m-primary" onclick="doCloseMonth()">Salva nello storico</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL STORICO -->
+<div class="modal" id="historyModal">
+  <div class="modal-box" style="max-width:520px">
+    <h3>Storico mesi salvati</h3>
+    <div id="historyList" style="margin-top:14px"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="m-ghost" onclick="closeHistory()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETTAGLIO MESE -->
+<div class="modal" id="monthDetailModal">
+  <div class="modal-box" style="max-width:600px;max-height:92vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3 id="mdTitle">Mese</h3>
+      <button onclick="closeMonthDetail()" style="background:transparent;border:none;font-size:24px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <div id="mdBody"></div>
+    <div class="modal-actions" style="margin-top:14px;flex-wrap:wrap">
+      <button class="m-ghost" onclick="closeMonthDetail()">Chiudi</button>
+      <button class="m-pdf" onclick="printSavedMonth()">📄 PDF questo mese</button>
+      <button class="m-primary" style="background:var(--warn);flex:0 0 auto;padding:12px 14px" onclick="deleteSavedMonth()">🗑️ Elimina</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFRONTO -->
+<div class="modal" id="compareModal">
+  <div class="modal-box" style="max-width:600px;max-height:92vh">
+    <h3>Confronta due mesi</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Vedi quantità e valori CHF a confronto, prodotto per prodotto.</p>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <select id="cmpA" onchange="renderCompare()" style="flex:1;padding:9px;border:1px solid rgba(15,14,12,.25);border-radius:8px;font-family:inherit;font-size:13px"></select>
+      <span style="display:flex;align-items:center;color:var(--muted)">↔</span>
+      <select id="cmpB" onchange="renderCompare()" style="flex:1;padding:9px;border:1px solid rgba(15,14,12,.25);border-radius:8px;font-family:inherit;font-size:13px"></select>
+    </div>
+    <div id="compareBody"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="m-ghost" onclick="closeCompare()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESET -->
+<div class="modal" id="resetModal">
+  <div class="modal-box">
+    <h3 id="rsTitle">Azzerare tutto?</h3>
+    <p id="rsDesc">Tutte le quantità di questa categoria verranno cancellate.</p>
+    <div id="rsPwdArea"></div>
+    <div class="modal-actions">
+      <button class="m-ghost" onclick="closeReset()" id="rsCancel">Annulla</button>
+      <button class="m-primary" style="background:var(--warn)" onclick="tryReset()" id="rsOk">Sì, azzera</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CURSORE BOTTIGLIA (solo Spiritueux) -->
+<div class="modal" id="bottleModal">
+  <div class="modal-box bottle-modal-box">
+    <div class="bm-head">
+      <div>
+        <div class="bm-name" id="bmName">Prodotto</div>
+        <div class="bm-meta" id="bmMeta"></div>
+      </div>
+      <button class="bm-close" onclick="closeBottleCursor()">×</button>
+    </div>
+
+    <!-- SEZIONE INTERE -->
+    <div class="bm-sec-intere">
+      <div class="bm-sec-label">
+        Bottiglie
+        <span class="big">piene / intere</span>
+      </div>
+      <div class="bm-intere-ctrl">
+        <button class="bm-intere-btn" onclick="bmAdjustIntere(-1)">−</button>
+        <input class="bm-intere-input" id="bmIntere" type="text" inputmode="decimal"
+               value="0" oninput="filtraNumero(this)" onchange="bmSetIntere(this.value)">
+        <button class="bm-intere-btn" onclick="bmAdjustIntere(1)">+</button>
+      </div>
+    </div>
+
+    <!-- SEZIONE APERTA (cursore) -->
+    <div class="bm-sec-aperta">
+      <div class="bm-aperta-head">
+        <div class="bm-sec-label" style="padding:0;background:transparent">
+          Bottiglia aperta
+          <span class="big" style="color:var(--muted);font-size:10px">(trascina il livello)</span>
+        </div>
+        <div class="bm-aperta-pct" id="bmPct">0% <span style="color:var(--muted);font-weight:600;font-size:10px">(0.00)</span></div>
+      </div>
+
+      <div class="bm-stage" id="bmStage">
+        <svg class="bm-svg" viewBox="0 0 100 180" xmlns="http://www.w3.org/2000/svg">
+          <rect x="42" y="6" width="16" height="22" fill="#2a1410" opacity=".85" rx="2"/>
+          <path d="M 42 28 Q 20 42 20 64 L 20 162 Q 20 172 30 172 L 70 172 Q 80 172 80 162 L 80 64 Q 80 42 58 28 Z"
+                fill="#1a0f08" opacity=".2" stroke="#4a2410" stroke-width="1.5"/>
+          <clipPath id="bmClip">
+            <path d="M 42 28 Q 20 42 20 64 L 20 162 Q 20 172 30 172 L 70 172 Q 80 172 80 162 L 80 64 Q 80 42 58 28 Z"/>
+          </clipPath>
+          <rect id="bmLiquid" x="20" y="162" width="60" height="0"
+                fill="#c89158" clip-path="url(#bmClip)" opacity=".85"/>
+          <rect x="25" y="88" width="50" height="40" fill="#fff" opacity=".92" rx="2"/>
+          <text id="bmLabel" x="50" y="107" text-anchor="middle" font-size="7" font-weight="bold" fill="#333">—</text>
+          <text id="bmLabelU" x="50" y="119" text-anchor="middle" font-size="5" fill="#666">—</text>
+        </svg>
+        <div class="bm-cursor-hit" id="bmHit" style="top:142px">
+          <div class="bm-cursor-line" id="bmLine"></div>
+        </div>
+      </div>
+
+      <div class="bm-presets">
+        <button class="bm-preset-btn vuota" onclick="bmSetAperta(0)">Vuota</button>
+        <button class="bm-preset-btn" onclick="bmSetAperta(0.25)">1/4</button>
+        <button class="bm-preset-btn" onclick="bmSetAperta(0.5)">1/2</button>
+        <button class="bm-preset-btn" onclick="bmSetAperta(0.75)">3/4</button>
+        <button class="bm-preset-btn" onclick="bmSetAperta(1)">Piena</button>
+      </div>
+    </div>
+
+    <!-- TOTALE -->
+    <div class="bm-totale">
+      <span class="lbl">Totale bottiglie</span>
+      <span class="num" id="bmTot">0.00</span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="m-ghost" onclick="closeBottleCursor()">Annulla</button>
+      <button class="m-primary" onclick="bmSave()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+
+<script>
+/* ====================================================================
+   INVENTARIO TBH — versione completa, 13 categorie
+   100% offline. Dati salvati su questo dispositivo.
+   ==================================================================== */
+
+/* === DATI: 13 categorie, 553 prodotti dal file TBH === */
+let CATEGORIE=[{id:"spiritueux",nome:"Spiritueux",zona:"doppia",step:0.1,items:[{n:"Aberdour single malt 12 ans",u:"70cl",pa:63.5},{n:"Abricotine Morand",u:"70cl",pa:44.9},{n:"Abricotine Valladière",u:"70cl",pa:23.9},{n:"Amaretto",u:"70cl",pa:19.9},{n:"Aperol",u:"100cl",pa:16.5},{n:"Appenzeller",u:"100cl",pa:29.8},{n:"Ardberg single malt 10 ans",u:"70cl",pa:49.3},{n:"Averna",u:"70cl",pa:16.9},{n:"Bacardi",u:"70cl",pa:17.5},{n:"Bailey's",u:"70cl",pa:17.0},{n:"Ballantine's",u:"70cl",pa:21.2},{n:"Brandy cuisine",u:"100cl",pa:16.8},{n:"Cachaça",u:"70cl",pa:22.9},{n:"Calvados Morin",u:"70cl",pa:20.5},{n:"Campari",u:"100cl",pa:23.6},{n:"Chivas regal",u:"70cl",pa:34.35},{n:"Cognac Rémy Martin VSOP",u:"70cl",pa:41.2},{n:"Cointreau",u:"70cl",pa:23.7},{n:"Cynar",u:"100cl",pa:18.5},{n:"Eau de vie Framboise",u:"70cl",pa:35.3},{n:"Fernet Branca",u:"70cl",pa:21.95},{n:"Flamberge cuisine",u:"100cl",pa:21.75},{n:"Get 27",u:"70cl",pa:18.1},{n:"Gordon's Gin",u:"70cl",pa:16.3},{n:"Gin Tanqueray LDG",u:"70cl",pa:22.15},{n:"Gin Rangpur",u:"70cl",pa:29.0},{n:"Grand Marnier",u:"70cl",pa:29.9},{n:"Grappa fior di vite",u:"70cl",pa:21.15},{n:"Grappa de Cépage",u:"50cl",pa:25.3},{n:"Grappa Cleopatra",u:"70cl",pa:47.02},{n:"Havana Club Brun 7 ans",u:"70cl",pa:32.4},{n:"Jaegermeister",u:"100cl",pa:28.2},{n:"JWalker Black",u:"70cl",pa:31.3},{n:"J Walker Red",u:"70cl",pa:19.8},{n:"Jack Daniel's",u:"70cl",pa:25.7},{n:"JB",u:"70cl",pa:21.5},{n:"Kirch",u:"100cl",pa:22.9},{n:"Limoncello",u:"200cl",pa:28.5},{n:"Crème de cassis",u:"70cl",pa:16.8},{n:"Laphoroaing",u:"70cl",pa:46.2},{n:"Lagavulin",u:"70cl",pa:71.25},{n:"Liqueur  Abricot",u:"70cl",pa:31.5},{n:"Liqueur de BANANE",u:"70cl",pa:21.2},{n:"Liqueur de TRIPLE SEC",u:"70cl",pa:23.5},{n:"Liqueur de White Pêche",u:"70cl",pa:23.5},{n:"Liqueur de Williamine",u:"70cl",pa:29.1},{n:"Creme de Mûre",u:"70cl",pa:15.0},{n:"Litchi",u:"70cl",pa:17.9},{n:"Madère cuisine",u:"100cl",pa:10.86},{n:"Malibu",u:"70cl",pa:19.1},{n:"Maraschino",u:"100cl",pa:12.5},{n:"Marc du valais",u:"100cl",pa:18.75},{n:"Marsala cuisine",u:"75cl",pa:12.5},{n:"Martini blanc",u:"100cl",pa:10.2},{n:"Martini rouge",u:"100cl",pa:10.2},{n:"Montenegro",u:"70cl",pa:23.9},{n:"Oban",u:"70cl",pa:68.5},{n:"Pastis",u:"100cl",pa:27.95},{n:"Pomme vedrenne Manzana",u:"75cl",pa:24.5},{n:"Porto Blanc",u:"75cl",pa:13.5},{n:"Porto Rouge",u:"75cl",pa:9.5},{n:"Pruneaou",u:"70cl",pa:31.0},{n:"Ricard",u:"100cl",pa:27.95},{n:"Picon",u:"100cl",pa:18.4},{n:"bulleit bourbon",u:"70cl",pa:29.45},{n:"bulleit rye",u:"70cl",pa:29.95},{n:"Rhum diplomatico",u:"70cl",pa:43.5},{n:"Rhum Zaccapa XO",u:"70cl",pa:114.9},{n:"Rhum Zaccapa 23 centenario",u:"70cl",pa:53.9},{n:"Rhum Captain Morgan",u:"70cl",pa:17.15},{n:"Sambuca",u:"70cl",pa:22.5},{n:"Suze",u:"100cl",pa:21.05},{n:"Tequila Sierra Silver",u:"70cl",pa:23.9},{n:"TALISKER",u:"70cl",pa:41.7},{n:"Vieille prune du perigord",u:"70cl",pa:20.9},{n:"Vodka Absolut",u:"70cl",pa:21.35},{n:"Vodka Smirnoff",u:"70cl",pa:15.7},{n:"Williamine la Valadiere L",u:"100cl",pa:31.1},{n:"Ciroc",u:"70cl",pa:38.5},{n:"Ciroc",u:"175cl",pa:99.95},{n:"Pampero Rhum",u:"",pa:23.95},{n:"Williamine Morand",u:"70cl",pa:37.5},{n:"COCKTALIS ALCOOL",u:"100cl",pa:46.9}]},
+{id:"minerales",nome:"Minérales",zona:"doppia",step:1,items:[{n:"Arkina",u:"100cl",pa:0.87},{n:"Bitter rouge",u:"10cl",pa:1.16},{n:"Coca Cola / light / zero",u:"33cl",pa:1.38},{n:"Coca Pet",u:"150cl",pa:2.61},{n:"Cocktalis ss alcool",u:"100cl",pa:46.9},{n:"Fanta orange",u:"33cl",pa:1.74},{n:"Jus bodyguard michel",u:"100cl",pa:2.7},{n:"Jus de fruit bodyguard",u:"20cl",pa:1.59},{n:"Jus de fruits divers",u:"20cl",pa:1.41},{n:"Jus de pomme ramseier",u:"33cl",pa:1.36},{n:"Jus d'orange",u:"100cl",pa:0.8},{n:"Jus ananas litre michel",u:"100cl",pa:2.65},{n:"Jus pomme rams. Litre",u:"100cl",pa:2.12},{n:"Queens Citron Pet",u:"150cl",pa:1.57},{n:"Queens cola Pet",u:"150cl",pa:1.57},{n:"Fanta Pet",u:"50cl",pa:1.67},{n:"REDBULL",u:"25cl",pa:1.94},{n:"Rivella rouge/blue",u:"33cl",pa:1.32},{n:"Kinley Lemon",u:"20cl",pa:1.35},{n:"Kinley Tonic",u:"20cl",pa:1.35},{n:"Kinley Tonic",u:"100cl",pa:3.05},{n:"Sirop de canne",u:"100cl",pa:10.65},{n:"Sirop citronelle",u:"100cl",pa:6.88},{n:"Sirop Fraise",u:"100cl",pa:6.88},{n:"Sirop grenadine",u:"100cl",pa:6.5},{n:"Sirop menthe",u:"100cl",pa:6.88},{n:"Sirop pêche",u:"100cl",pa:7.35},{n:"Sirop",u:"",pa:7.35},{n:"Sirop Mojto",u:"100cl",pa:8.88},{n:"Sirop Fleur de sureaux",u:"100cl",pa:7.35},{n:"Sprite",u:"33cl",pa:1.46},{n:"Thé froid  lemon",u:"100cl",pa:1.2},{n:"Thé froid Pêche",u:"100cl",pa:1.2},{n:"Arkina PET",u:"150cl",pa:1.44},{n:"Valser VC gaz/plate",u:"50cl",pa:1.17},{n:"Valser VC gaz/plate",u:"33cl",pa:1.09},{n:"Lurisia Plat/gaz",u:"50cl",pa:1.15},{n:"Lurisia Plat/gaz",u:"75cl",pa:1.18},{n:"Lur. Aran. Chin. Gass.",u:"27.5cl",pa:1.48}]},
+{id:"vins",nome:"Vins & Champagne",zona:"doppia",step:1,items:[{n:"Cht.de Duiller Œil de Perdrix",u:"75cl",pa:11.5},{n:"Cht.de Duiller Œil de Perdrix",u:"50cl",pa:6.1},{n:"Gamay de Duiller",u:"75cl",pa:9.0},{n:"Gamay de Duiller",u:"50cl",pa:6.0},{n:"Pinot gris",u:"75cl",pa:12.0},{n:"Pinot Noir Coins Perdu",u:"75cl",pa:11.7},{n:"Pinot Noir Coins Perdu",u:"50cl",pa:8.6},{n:"Dom. D`Avenex rosé",u:"50cl",pa:6.04},{n:"Dom. D`Avenex rose",u:"75cl",pa:9.29},{n:"Dom. D`Avenex Pinot N",u:"50cl",pa:7.43},{n:"Dom. D`Avenex Pinot N",u:"75cl",pa:10.21},{n:"Dom. D`Avenex Chasselas",u:"50cl",pa:6.04},{n:"Dom. D`Avenex Chasselas",u:"75cl",pa:7.89},{n:"Dom. D`Avenex Gewürtztraminer",u:"75cl",pa:11.14},{n:"Dom. D`Avenex Gamaret",u:"75cl",pa:10.93},{n:"Château du Barry",u:"75cl",pa:14.45},{n:"Vin de provence rose",u:"75cl",pa:10.0},{n:"Amarone",u:"75cl",pa:28.5},{n:"Brunello Montalcino Banfi",u:"75cl",pa:34.5},{n:"Cannonau Sardaigna",u:"75cl",pa:11.0},{n:"Chianti",u:"50cl",pa:4.4},{n:"Chianti Classico Pepoli",u:"75cl",pa:15.5},{n:"Montepulciano",u:"50cl",pa:2.5},{n:"Montefalco",u:"75cl",pa:11.8},{n:"Barbera",u:"75cl",pa:13.5},{n:"RIPASSO MONTERE",u:"75cl",pa:14.9},{n:"Vins du mois",u:"",pa:9.0},{n:"Vins du mois",u:"",pa:12.0},{n:"Gamay rosé",u:"100cl",pa:6.5},{n:"Goron",u:"100cl",pa:7.25},{n:"Montepulciano",u:"100cl",pa:3.85},{n:"Rouge Cuisine",u:"100cl",pa:2.45},{n:"Salvagnin",u:"100cl",pa:7.4},{n:"Chasselas Romand",u:"100cl",pa:6.1},{n:"Chianti",u:"100cl",pa:4.0},{n:"Prosecco",u:"75cl",pa:6.9},{n:"Laurent Perrier",u:"75cl",pa:39.9},{n:"Boizel rosé",u:"75cl",pa:37.0}]},
+{id:"pressions",nome:"Pressions",zona:"doppia",step:0.1,items:[{n:"Kro 1664 Fût plein",u:"20L",pa:105.6},{n:"Valaisane Fûts pleins",u:"20L",pa:111.0},{n:"Valaisane White IPA",u:"20L",pa:119.4},{n:"Grimbergen Ambée",u:"20L",pa:120.4},{n:"Grimbergen  blanche Fûts pleins",u:"20L",pa:107.2},{n:"Superbock",u:"20L",pa:95.4},{n:"Brooklin",u:"20L",pa:108.2},{n:"VALSER PREMIX Fûts pleins",u:"20l",pa:41.4},{n:"coca postmix Fûts pleins",u:"20l",pa:344.0},{n:"sprite postmix Fûts pleins",u:"10l",pa:146.4},{n:"fuse tea postmix Fûts pleins",u:"10l",pa:129.4},{n:"Total fûts pleins et vides",u:"",pa:0.0},{n:"Aligal CO 2 Grande (plein)",u:"",pa:57.95},{n:"Aligal CO 2 Petite (plein)",u:"",pa:55.95},{n:"Total Gaz CO2 (plein + vide)",u:"",pa:0.0},{n:"Bierre du mois",u:"",pa:2.4},{n:"Guiness",u:"33cl",pa:2.57},{n:"Coruja",u:"33cl",pa:1.76},{n:"Corona",u:"35.5cl",pa:2.17},{n:"Desperados",u:"33cl",pa:2.37},{n:"Superbock sans alco",u:"33cl",pa:1.25},{n:"Heineken",u:"25cl",pa:1.73},{n:"Grimberg Rouge",u:"25cl",pa:2.02},{n:"SMIRNOFF ICE",u:"33cl",pa:2.31},{n:"SOMERSBY",u:"33cl",pa:1.9},{n:"Superbock",u:"25cl",pa:0.85}]},
+{id:"emballage",nome:"Emballage & Café",zona:"doppia",step:1,items:[{n:"Harasses + pleines",u:"",pa:5.0},{n:"Chocofino",u:"pièce",pa:0.25},{n:"Chocolat pour café",u:"sac",pa:20.0},{n:"Suchard express",u:"pièce",pa:0.25},{n:"Menthe",u:"pièce",pa:0.11},{n:"Tilleul",u:"pièce",pa:0.11},{n:"Verveine",u:"pièce",pa:0.11},{n:"Camomille",u:"pièce",pa:0.11},{n:"Cynorrhodon",u:"pièce",pa:0.13},{n:"Thé Noir",u:"pièce",pa:0.12},{n:"Café",u:"kilo",pa:13.2},{n:"Décafeiné",u:"pièce",pa:0.34},{n:"Speculos",u:"Sachets",pa:0.04},{n:"Assugrin",u:"Sachets",pa:0.04},{n:"Sucre",u:"Cartons",pa:15.11},{n:"Thé vert",u:"pièce",pa:0.1}]},
+{id:"snacks",nome:"Snacks & Bonbons",zona:"doppia",step:1,items:[{n:"Bounty",u:"Unité",pa:0.9},{n:"Chips natures & Pap 30gr",u:"Unité",pa:0.89},{n:"Chips paprika 350gr",u:"Unité",pa:3.55},{n:"Chupa chups",u:"Unité",pa:0.37},{n:"Fraises tagada",u:"Unité",pa:1.42},{n:"Frites fizz",u:"Unité",pa:1.42},{n:"Happy cola",u:"Unité",pa:1.42},{n:"M&M's",u:"Unité",pa:0.82},{n:"Malteser",u:"Unité",pa:0.93},{n:"Mars",u:"Unité",pa:0.75},{n:"Nachos 450 g",u:"Unité",pa:2.9},{n:"Nachos nature 450g",u:"Unité",pa:1.45},{n:"Panini",u:"Unité",pa:1.2},{n:"Pizza al taglio",u:"Unité",pa:3.2},{n:"Poche ketchup",u:"Unité",pa:0.2},{n:"Poche mayo",u:"Unité",pa:0.2},{n:"mayo",u:"Unité",pa:4.0},{n:"ketchup",u:"Unité",pa:4.5},{n:"Mutarde",u:"Unité",pa:4.5},{n:"Poche moutarde",u:"Unité",pa:0.2},{n:"Pringles",u:"Unité",pa:1.15},{n:"Quaxy",u:"Unité",pa:1.42},{n:"Sauce guacamole",u:"Unité",pa:6.6},{n:"Sauce chedar",u:"Unité",pa:1.3},{n:"Sauce salsa",u:"Unité",pa:12.2},{n:"Mais PopCorn Butterfly",u:"1 Kg",pa:2.16},{n:"PopCorn",u:"",pa:0.0},{n:"Snickers",u:"Unité",pa:0.9},{n:"Ttwix",u:"Unité",pa:0.77},{n:"King cône",u:"Unité",pa:2.44},{n:"Chocolate cornetto",u:"Unité",pa:1.81},{n:"Fraise cornetto",u:"Unité",pa:1.81},{n:"Vanille cornetto",u:"Unité",pa:1.81},{n:"Rocket",u:"Unité",pa:0.56},{n:"Solero",u:"Unité",pa:1.81},{n:"Haribo",u:"Unité",pa:1.18},{n:"Twister",u:"Unité",pa:1.04},{n:"Calippo",u:"Unité",pa:1.18},{n:"Magnum classic",u:"Unité",pa:1.6},{n:"Magnum almond",u:"Unité",pa:1.6},{n:"Magnum white",u:"Unité",pa:1.15},{n:"Magnum dble caramel",u:"Unité",pa:1.96},{n:"Magnum dark intense",u:"Unité",pa:2.21},{n:"Tresor",u:"Unité",pa:0.0},{n:"Donuts Fourés",u:"Unité",pa:1.41},{n:"Donuts",u:"Unité",pa:0.7}]},
+{id:"desserts",nome:"Desserts",zona:"singola",step:1,items:[{n:"Abricot",u:"2.4 litres",pa:13.07},{n:"Assort.mini choux",u:"Pièce",pa:0.68},{n:"Assort.mini viennoiseries",u:"Pièce",pa:0.35},{n:"Ballons de table",u:"Pièce",pa:0.49},{n:"Brownies",u:"Pièce",pa:1.15},{n:"Mini Burger épautre",u:"Pièce",pa:0.6},{n:"Pizza Sns gluten",u:"Pièce",pa:3.57},{n:"Burger épautre",u:"Pièce",pa:0.6},{n:"Cassata",u:"Pièce",pa:1.07},{n:"Chocolat",u:"2.4 litres",pa:11.3},{n:"Citron vert",u:"2.4 litres",pa:10.14},{n:"Croissant précuit",u:"Pièce",pa:0.58},{n:"Café",u:"2.4 litres",pa:16.45},{n:"Flûte limoncello",u:"Pièce",pa:4.28},{n:"Fraises",u:"2.4 litres",pa:11.56},{n:"Frites",u:"kilo",pa:4.0},{n:"Fruits des bois",u:"kilo",pa:6.0},{n:"Génoise chocolat",u:"Pièce",pa:78.0},{n:"Génoise nature",u:"Pièce",pa:78.0},{n:"Macarons",u:"carton",pa:38.5},{n:"Mangue",u:"2.4 litres",pa:10.6},{n:"Mignardises",u:"Pièce",pa:0.9},{n:"Mocca",u:"2.4 litres",pa:11.56},{n:"Noix de coco",u:"2.4 litres",pa:11.3},{n:"Nuggets",u:"kilo",pa:11.72},{n:"Pain au Chocolat",u:"Pièce",pa:0.65},{n:"Mini navet",u:"Pièce",pa:0.28},{n:"Pains hot-dog",u:"Pièce",pa:0.78},{n:"Pancakes",u:"Pièce",pa:0.7},{n:"Pains sandwichs",u:"Pièce",pa:0.64},{n:"Panini",u:"Pièce",pa:1.71},{n:"Parfait mocca",u:"Pièce",pa:1.86},{n:"Pistache",u:"2.4 litres",pa:12.96},{n:"Poire william",u:"2.4 litres",pa:13.59},{n:"Profiteroles",u:"Pièce",pa:0.3},{n:"Tartes fines aux pommes",u:"Pièce",pa:1.85},{n:"Fusée",u:"Pièce",pa:0.56},{n:"Vanille",u:"5 litres",pa:22.49},{n:"Mini Croissant",u:"Pièce",pa:0.3},{n:"Pain",u:"Pièce",pa:2.8},{n:"Pain toast",u:"Pièce",pa:3.32},{n:"Pome",u:"2.4 litres",pa:10.6},{n:"Donut soucrée",u:"Pièce",pa:0.7},{n:"Dessert divers Maison",u:"Pièce",pa:1.5},{n:"Donut choco",u:"Pièce",pa:1.51}]},
+{id:"boucherie",nome:"Boucherie",zona:"singola",step:0.1,items:[{n:"Blanc de poulet",u:"kilo",pa:14.5},{n:"Bœuf aiguillette",u:"kilo",pa:26.8},{n:"Bresaola",u:"kilo",pa:41.9},{n:"Carpaccio",u:"kilo",pa:34.0},{n:"Côte d'agneau",u:"kilo",pa:20.8},{n:"Côte de veau",u:"kilo",pa:29.0},{n:"Emincé Volaille",u:"kilo",pa:13.5},{n:"Entrecôte 1er choix",u:"kilo",pa:39.0},{n:"Filet de boeuf",u:"kilo",pa:49.5},{n:"Filet mignon sanglier",u:"kilo",pa:17.95},{n:"Foie gras",u:"kilo",pa:47.5},{n:"Speck",u:"kilo",pa:23.5},{n:"Jambon epaule",u:"kilo",pa:14.4},{n:"Jambon de Parme",u:"kilo",pa:28.5},{n:"Jambon de dinde",u:"kilo",pa:18.95},{n:"Lard fumé",u:"kilo",pa:14.9},{n:"Merguez",u:"kilo",pa:13.8},{n:"Mortadelle",u:"kilo",pa:17.9},{n:"Entrecôte Parisene",u:"kilo",pa:24.95},{n:"Entrecôte Cheval",u:"kilo",pa:21.5},{n:"Foies de volaies",u:"kilo",pa:16.0},{n:"Chorizo",u:"kilo",pa:15.15},{n:"Noisette de chevreuil",u:"kilo",pa:30.5},{n:"Noix de veau",u:"kilo",pa:53.0},{n:"Poulet poitrine",u:"kilo",pa:14.8},{n:"Pancetta",u:"kilo",pa:22.95},{n:"R. Steak",u:"kilo",pa:37.0},{n:"Ravioli de cheveuil",u:"kilo",pa:14.2},{n:"Salami rustico",u:"kilo",pa:31.83},{n:"Salami piquant",u:"kilo",pa:18.9},{n:"Saucisse HOT DOG",u:"kilo",pa:13.7},{n:"Suprême poulet",u:"kilo",pa:16.9},{n:"Tartare portion",u:"kilo",pa:31.5},{n:"Travers de porc",u:"kilo",pa:17.9},{n:"Veau épaule",u:"kilo",pa:30.9},{n:"Salame de sanclier",u:"kilo",pa:32.0},{n:"Viande hamburger",u:"kilo",pa:20.5},{n:"Coppa",u:"kilo",pa:32.0},{n:"viands divers",u:"kilo",pa:20.0},{n:"Viande hachée",u:"kilo",pa:17.5}]},
+{id:"poissons",nome:"Poissons",zona:"singola",step:0.1,items:[{n:"Anchois",u:"800gr",pa:15.8},{n:"Calamari",u:"kilo",pa:8.9},{n:"Chutes saumon fumé",u:"kilo",pa:19.9},{n:"Cocktail de Crevettes",u:"kilo",pa:18.9},{n:"Dorade",u:"kilo",pa:14.5},{n:"Dos de cabillaud",u:"kilo",pa:45.0},{n:"Espadon",u:"kilo",pa:23.0},{n:"Filets de Perche",u:"kilo",pa:24.0},{n:"Filets de Pangasus",u:"kilo",pa:6.5},{n:"Fruits de mer ( Maison)",u:"kilo",pa:24.9},{n:"Gambas",u:"kilo",pa:17.0},{n:"Gambas decortique",u:"kilo",pa:18.0},{n:"Moules de Bouchot",u:"kilo",pa:8.5},{n:"Noix St Jacques",u:"kilo",pa:59.0},{n:"Poulpe",u:"kilo",pa:25.9},{n:"Saumon",u:"kilo",pa:23.0},{n:"Saumon fumé / Norvège",u:"kilo",pa:28.5},{n:"Seiches",u:"kilo",pa:12.0},{n:"Sole",u:"kilo",pa:35.0},{n:"Sticks de cabillaud",u:"kilo",pa:16.0},{n:"Filet de fera",u:"kilo",pa:28.5},{n:"Thon rose",u:"boîte",pa:11.25},{n:"Vongole",u:"kilo",pa:16.5},{n:"plat du jour",u:"kilo",pa:18.0}]},
+{id:"pates",nome:"Pâtes & Riz",zona:"singola",step:0.1,items:[{n:"Bucatini",u:"kilo",pa:2.66},{n:"Farfalle",u:"kilo",pa:3.42},{n:"Fusilli",u:"kilo",pa:2.95},{n:"Fusili Alfredo",u:"kilo",pa:3.95},{n:"Gnocchi",u:"kilo",pa:4.6},{n:"Lasagne blanche 500gr",u:"piece",pa:3.2},{n:"Lasagne portion",u:"piece",pa:5.35},{n:"Linguini fraiches",u:"kilo",pa:7.12},{n:"Linguini",u:"kilo",pa:2.66},{n:"Orechiette",u:"kilo",pa:4.38},{n:"Papardelle",u:"kilo",pa:6.6},{n:"Penne",u:"kilo",pa:6.4},{n:"Penne rigate 3kg",u:"piece",pa:9.85},{n:"Polenta",u:"kilo",pa:2.9},{n:"Rigatoni",u:"kilo",pa:2.4},{n:"Riz au jasmin",u:"kilo",pa:2.4},{n:"Risotto arborio",u:"Kilo",pa:2.9},{n:"Riz basmati",u:"kilo",pa:3.2},{n:"Riz Golden",u:"1 kilo",pa:1.2},{n:"Spaghetti vrac 3kg",u:"piece",pa:9.85},{n:"Tagliatelle fraiches",u:"kilo",pa:8.84},{n:"Tagliatelle  500gr",u:"piece",pa:2.5},{n:"Taglioni",u:"kilo",pa:7.5},{n:"Tortellini Viande",u:"kilo",pa:11.9},{n:"Tortiglioni",u:"kilo",pa:3.4},{n:"Pâtes Divers",u:"kilo",pa:4.4},{n:"Pâtes Divers frais",u:"kilo",pa:12.0}]},
+{id:"condiments",nome:"Condiments",zona:"singola",step:1,items:[{n:"Amandes effilées",u:"piece",pa:3.14},{n:"Amarenata",u:"piece",pa:12.92},{n:"Artichaut 3/1",u:"piece",pa:9.25},{n:"Biscuits savoyards",u:"piece",pa:3.14},{n:"Bouillon",u:"Kilo",pa:23.58},{n:"Bouillon de poule",u:"Kilo",pa:23.67},{n:"Brislets roulés",u:"piece",pa:0.15},{n:"Champignons",u:"kilo",pa:6.5},{n:"Chocolat",u:"kilo",pa:12.5},{n:"Condimix",u:"Boîte",pa:18.0},{n:"Confiture",u:"piece",pa:0.27},{n:"Couscous moyen",u:"kilo",pa:1.89},{n:"Crème de truffe noire",u:"400 g.",pa:23.0},{n:"Crème sandwich",u:"bi 4.7k",pa:31.6},{n:"Curry des Indes",u:"Boîte",pa:6.55},{n:"Demi glace",u:"Kilo",pa:17.98},{n:"Farine fleur",u:"kilo",pa:1.45},{n:"Farine M. Blanche",u:"kilo",pa:1.42},{n:"Fumet de poisson maison",u:"kilo",pa:12.0},{n:"Gélatine Agar-agar",u:"piece",pa:59.8},{n:"Huile d'Olive congedi",u:"25cl",pa:4.51},{n:"Huile d'Olive Speroni",u:"litre",pa:4.85},{n:"Huile Tournesol High",u:"1 Litre",pa:4.75},{n:"Jus de citron",u:"Litre",pa:3.5},{n:"Ketchup",u:"Btle",pa:12.8},{n:"Lentilles",u:"piece",pa:3.14},{n:"Maïzena",u:"Boîte",pa:10.95},{n:"Maïzena rapide",u:"Boîte",pa:14.48},{n:"Mayonnaise   portions",u:"piece",pa:0.34},{n:"Mayonnaise 4.7 kg",u:"piece",pa:20.0},{n:"Miel",u:"pièce",pa:0.41},{n:"Minestrone",u:"kilo",pa:8.0},{n:"Moutarde forte",u:"piece",pa:0.34},{n:"Moutarde forte",u:"bi 5.2k",pa:17.5},{n:"Oignons au vinaigre",u:"Boîte",pa:16.0},{n:"Olives noires",u:"boîte",pa:19.9},{n:"Olives vertes",u:"piece",pa:3.14},{n:"Origan",u:"Kilo",pa:11.0},{n:"Pignons",u:"kilo",pa:69.0},{n:"Pois chiches",u:"pièce",pa:2.5},{n:"Poivre blanc",u:"Kilo",pa:18.62},{n:"Poivre vert",u:"Boîte",pa:3.14},{n:"Poudre Aromat 120g",u:"Kilo",pa:2.9},{n:"Quinoa",u:"piece",pa:3.14},{n:"Riz Jasmin",u:"Kilo",pa:0.0},{n:"Safran moulu",u:"10 g",pa:34.5},{n:"Sauce soja",u:"piece",pa:3.14},{n:"Sel cuisine",u:"kilo",pa:0.55},{n:"Semoule di grana duro",u:"kilo",pa:1.96},{n:"Sésame",u:"piece",pa:3.3},{n:"Sucre",u:"kilo",pa:1.14},{n:"Sucre de canne",u:"Kilo",pa:1.14},{n:"Sucre glace",u:"Kilo",pa:2.55},{n:"Tabasco",u:"Btle",pa:2.9},{n:"Tomates pelées",u:"boite",pa:4.95},{n:"Tomate double concentré",u:"Boîte",pa:2.4},{n:"Tomate polpa 10kg",u:"kilo",pa:1.5},{n:"Tomates séchées",u:"piece",pa:3.14},{n:"Topping café",u:"Btle",pa:7.5},{n:"Topping caramel",u:"Btle",pa:8.75},{n:"Topping chocolat",u:"Btlle",pa:7.5},{n:"Topping fraise",u:"Btle",pa:7.5},{n:"Vin de cuisine",u:"Litre",pa:3.14},{n:"Vinaigre Aceto Balsamico",u:"Litre",pa:7.6},{n:"Vinaigre Blanc",u:"Litre",pa:1.9},{n:"Vinaigre de framboise",u:"Bt.",pa:10.35},{n:"Vinaigre rouge",u:"litre",pa:1.54},{n:"Worchesteine sauce",u:"Boîte",pa:2.77},{n:"Piments 1.7KG",u:"Boîte",pa:12.5},{n:"Viagra calabrese 106g",u:"Boîte",pa:2.0},{n:"Artichauds 3.1KG",u:"Boîte",pa:23.0},{n:"Bolets seches  500 g",u:"saches",pa:42.0},{n:"Antipasto Calab. 3.1KG",u:"Boîte",pa:20.0},{n:"Antipasto Mont. 3.1 KG",u:"Boîte",pa:22.0}]},
+{id:"fromages",nome:"Fromages & Œufs",zona:"singola",step:0.1,items:[{n:"Beurre",u:"Kilo",pa:13.45},{n:"Beurre Portion",u:"pièce",pa:0.2},{n:"Burratina 250gr",u:"pièce",pa:4.9},{n:"Cheddar",u:"Kilo",pa:11.0},{n:"Chèvre",u:"Kilo",pa:13.8},{n:"Crème 0.25",u:"piece",pa:5.8},{n:"Crème 0.35",u:"piece",pa:6.1},{n:"Crème à café",u:"Carton",pa:9.9},{n:"Crème chantilly",u:"pièce",pa:9.9},{n:"Feta",u:"Kilo",pa:12.5},{n:"Gorgonzola",u:"Kilo",pa:9.35},{n:"Grana padano bloc",u:"Kilo",pa:15.3},{n:"Grana Padano rapé",u:"Kilo",pa:12.5},{n:"Gruyère",u:"Kilo",pa:16.4},{n:"Lait",u:"Litre",pa:1.24},{n:"Levure",u:"pièce",pa:0.25},{n:"Mascarpone",u:"pièce",pa:6.8},{n:"Mayonnaise bidon 5 l",u:"5 litre",pa:16.5},{n:"Mozzarella boule Bufala",u:"Kilo",pa:14.4},{n:"Mozz dolce latteJulienne",u:"Kilo",pa:6.5},{n:"Mozzarelline",u:"kilo",pa:12.95},{n:"Œuf",u:"pièce",pa:0.31},{n:"Pâte Feuilletée",u:"Rouleau",pa:32.95},{n:"Ricotta",u:"kilo",pa:9.4},{n:"Roquefort",u:"Kilo",pa:29.9},{n:"Taleggio",u:"Kilo",pa:14.0},{n:"Tilsit",u:"Kilo",pa:13.8},{n:"Tofu",u:"Kilo",pa:17.3},{n:"Kiri",u:"Carton",pa:30.17},{n:"Babibel",u:"Carton",pa:59.4},{n:"Provolone",u:"Kilo",pa:13.8},{n:"Jaune d'œuf",u:"Litre",pa:13.8},{n:"Sauce hollandaise",u:"piece",pa:13.8},{n:"Sauce bearnaise",u:"piece",pa:13.8},{n:"Double creme",u:"litre",pa:13.8},{n:"Lait coco",u:"litre",pa:13.8},{n:"Yogourt mélange",u:"pièce",pa:0.45}]},
+{id:"fruits",nome:"Fruits & Légumes",zona:"singola",step:0.1,items:[{n:"Ail",u:"Kilo",pa:7.2},{n:"Ananas",u:"Kilo",pa:8.75},{n:"Asperges",u:"kilo",pa:10.75},{n:"Aubergine",u:"Kilo",pa:4.5},{n:"Avocat",u:"Pièce",pa:2.0},{n:"Banane",u:"Kilo",pa:2.9},{n:"Basilic",u:"kilo",pa:30.75},{n:"Betterave chioggia",u:"kilo",pa:10.2},{n:"Betterave cuite",u:"kilo",pa:10.2},{n:"Bolets",u:"Kilo",pa:14.5},{n:"Brocolis congelés",u:"Kilo",pa:5.0},{n:"Câpres",u:"boite",pa:10.7},{n:"Carotte",u:"Kilo",pa:1.8},{n:"Cerneaux de noix",u:"kilo",pa:22.0},{n:"Champignons de Paris",u:"kilo",pa:7.0},{n:"Champignons mélangés",u:"Kilo",pa:24.0},{n:"Chanterelles",u:"boîte",pa:13.75},{n:"Choux blancs",u:"kilo",pa:3.5},{n:"Choux rouges",u:"kilo",pa:3.5},{n:"Citron",u:"Kilo",pa:3.6},{n:"Citrons verts",u:"kilo",pa:8.5},{n:"Clémentines",u:"kilo",pa:8.5},{n:"Clous de Giroffle",u:"boîte",pa:8.0},{n:"Cœur d' Artichauts",u:"kilo",pa:6.38},{n:"Concombre",u:"piece",pa:2.2},{n:"Cornichons",u:"boîte",pa:21.25},{n:"Courgette",u:"Kilo",pa:4.5},{n:"Echalotte",u:"Kilo",pa:7.5},{n:"Endive",u:"kilo",pa:5.7},{n:"Epinards",u:"kilo",pa:4.29},{n:"Feuille de chêne",u:"pièce",pa:1.8},{n:"Fraises",u:"500 gr",pa:5.9},{n:"Framboises surg",u:"kilo",pa:6.9},{n:"Haricots verts congelés",u:"Kilo",pa:4.6},{n:"Jardinère",u:"Kilo",pa:5.2},{n:"Kiwi",u:"kilo",pa:8.5},{n:"Maïs",u:"boîte",pa:4.4},{n:"Mangue",u:"PS",pa:8.5},{n:"Cubes mangues surg",u:"kilo",pa:8.5},{n:"Myrtilles surg",u:"kilo",pa:10.45},{n:"Melons",u:"kilo",pa:10.45},{n:"Morilles séchées",u:"kilo",pa:132.0},{n:"Noix",u:"kilo",pa:10.0},{n:"Oignons",u:"Kilo",pa:1.8},{n:"Oignons rouges",u:"Kilo",pa:4.5},{n:"Oranges",u:"Kilo",pa:2.8},{n:"Petits pois congelés",u:"Kilo",pa:4.9},{n:"Poireau entier",u:"Kilo",pa:5.5},{n:"Poivrons",u:"Kilo",pa:4.48},{n:"Poivrons mélangés",u:"Kilo",pa:4.48},{n:"Pommes de terre",u:"Kilo",pa:1.4},{n:"Pommes Golden",u:"Kilo",pa:2.3},{n:"Raisins noirs",u:"Kilo",pa:6.5},{n:"Roquette",u:"kilo",pa:14.5},{n:"Salade  rampon suisse",u:"kilo",pa:22.0},{n:"Salade celeris hero",u:"2 kilos",pa:10.1},{n:"Salade de fruits frais",u:"kilo",pa:15.0},{n:"Salade Iceberg",u:"pièce",pa:1.78},{n:"Salade verte",u:"pièce",pa:1.78},{n:"Tomates cerises",u:"Kilo",pa:7.5},{n:"Tomates",u:"Kilo",pa:2.9},{n:"Trevise suisse",u:"kilo",pa:5.5}]}];
+
+/* === VARIANTE SETTORE "RESTO" ===
+   Mantengo solo le categorie di competenza di questo settore. */
+const _SETTORE_ALLOWED = ["spiritueux","minerales","vins","pressions","emballage","snacks"];
+const _SETTORE_NOME = "resto";
+CATEGORIE = CATEGORIE.filter(c => _SETTORE_ALLOWED.includes(c.id));
+
+
+const PASSWORD = "1111";
+
+const T = {
+  it:{
+    appCat:"Inventario", bar:"BAR", cave:"CAVE", resto:"RESTO", cuisine:"CUISINE", counted:"Contati",
+    search:"Cerca prodotto", buy:"Acquisto",
+    tipDec:"I tasti + e − cambiano la quantità di 0,10. Puoi anche scrivere a mano.",
+    tipInt:"I tasti + e − cambiano la quantità di 1. Puoi anche scrivere a mano.",
+    reset:"Azzera", export:"Esporta PDF",
+    exTitle:"Esporta inventario", exDesc:"Crea il PDF della conta da inviare alla contabile.",
+    exHint:"Tocca Crea PDF. Si apre la finestra di stampa → alla voce Destinazione scegli «Salva come PDF» → Salva.",
+    exRecap:"RIEPILOGO", exPdf:"PDF questa categoria", exPdfAll:"PDF tutte le categorie", exClose:"Chiudi", exCopy:"Copia testo",
+    exSteps:"Per inviarlo: nella finestra di stampa scegli «Salva come PDF» (non una stampante), salva sul Desktop, poi allega il file a un'email.",
+    setTitle:"Impostazioni", setLang:"Lingua", setPrice:"Aggiorna prezzi d'acquisto",
+    setClose:"Chiudi", priceCat:"Categoria", resetPrices:"Ripristina prezzi categoria",
+    rsTitle:"Azzerare tutto?", rsDesc:"Tutte le quantità di questa categoria verranno cancellate.",
+    rsCancel:"Annulla", rsOk:"Sì, azzera",
+    noQty:"Nessuna quantità inserita.", tProd:"Prodotto", tTot:"Totale", confDate:"Conta del",
+    ttSaved:"Salvato ✓", ttReset:"Categoria azzerata", ttCopied:"Copiato ✓",
+    ttPriceSaved:"Prezzo aggiornato ✓", ttPriceReset:"Prezzi ripristinati ✓", ttPrint:"Apertura stampa…",
+    pwdAsk:"Inserisci la password per modificare i prezzi", pwdAskReset:"Inserisci la password per azzerare",
+    pwdWrong:"Password errata", pwdOk:"Sblocca",
+  },
+  fr:{
+    appCat:"Inventaire", bar:"BAR", cave:"CAVE", resto:"RESTO", cuisine:"CUISINE", counted:"Comptés",
+    search:"Chercher un produit", buy:"Achat",
+    tipDec:"Les touches + et − changent la quantité de 0,10. Vous pouvez aussi saisir à la main.",
+    tipInt:"Les touches + et − changent la quantité de 1. Vous pouvez aussi saisir à la main.",
+    reset:"Effacer", export:"Exporter PDF",
+    exTitle:"Exporter l'inventaire", exDesc:"Créez le PDF du comptage à envoyer au comptable.",
+    exHint:"Touchez Créer PDF. La fenêtre d'impression s'ouvre → dans Destination choisissez « Enregistrer en PDF » → Enregistrer.",
+    exRecap:"RÉCAPITULATIF", exPdf:"PDF cette catégorie", exPdfAll:"PDF toutes les catégories", exClose:"Fermer", exCopy:"Copier le texte",
+    exSteps:"Pour l'envoyer : dans la fenêtre d'impression choisissez « Enregistrer en PDF », enregistrez sur le Bureau, puis joignez le fichier à un e-mail.",
+    setTitle:"Réglages", setLang:"Langue", setPrice:"Mettre à jour les prix d'achat",
+    setClose:"Fermer", priceCat:"Catégorie", resetPrices:"Réinitialiser les prix",
+    rsTitle:"Tout effacer ?", rsDesc:"Toutes les quantités de cette catégorie seront supprimées.",
+    rsCancel:"Annuler", rsOk:"Oui, effacer",
+    noQty:"Aucune quantité saisie.", tProd:"Produit", tTot:"Total", confDate:"Comptage du",
+    ttSaved:"Enregistré ✓", ttReset:"Catégorie effacée", ttCopied:"Copié ✓",
+    ttPriceSaved:"Prix mis à jour ✓", ttPriceReset:"Prix réinitialisés ✓", ttPrint:"Ouverture de l'impression…",
+    pwdAsk:"Saisissez le mot de passe pour modifier les prix", pwdAskReset:"Saisissez le mot de passe pour effacer",
+    pwdWrong:"Mot de passe incorrect", pwdOk:"Déverrouiller",
+  },
+  en:{
+    appCat:"Inventory", bar:"BAR", cave:"CAVE", resto:"RESTO", cuisine:"CUISINE", counted:"Counted",
+    search:"Search product", buy:"Cost",
+    tipDec:"The + and − keys change the quantity by 0.10. You can also type manually.",
+    tipInt:"The + and − keys change the quantity by 1. You can also type manually.",
+    reset:"Clear", export:"Export PDF",
+    exTitle:"Export inventory", exDesc:"Create the count PDF to send to the accountant.",
+    exHint:"Tap Create PDF. The print window opens → under Destination choose «Save as PDF» → Save.",
+    exRecap:"SUMMARY", exPdf:"PDF this category", exPdfAll:"PDF all categories", exClose:"Close", exCopy:"Copy text",
+    exSteps:"To send it: in the print window choose «Save as PDF» (not a printer), save to the Desktop, then attach the file to an email.",
+    setTitle:"Settings", setLang:"Language", setPrice:"Update purchase prices",
+    setClose:"Close", priceCat:"Category", resetPrices:"Reset category prices",
+    rsTitle:"Clear everything?", rsDesc:"All quantities for this category will be deleted.",
+    rsCancel:"Cancel", rsOk:"Yes, clear",
+    noQty:"No quantity entered.", tProd:"Product", tTot:"Total", confDate:"Count of",
+    ttSaved:"Saved ✓", ttReset:"Category cleared", ttCopied:"Copied ✓",
+    ttPriceSaved:"Price updated ✓", ttPriceReset:"Prices reset ✓", ttPrint:"Opening print…",
+    pwdAsk:"Enter the password to edit prices", pwdAskReset:"Enter the password to clear",
+    pwdWrong:"Wrong password", pwdOk:"Unlock",
+  }
+};
+
+const LANG_KEY = "tbh_lang_v2";
+let lang = "it";
+let catIdx = 0;
+let zone = "bar";
+let counts = {};   // counts[catId] = {bar:{},resto:{}}  oppure {single:{}}
+let prezzi = {};   // prezzi[catId] = {idx:prezzo}
+let priceUnlocked = false;
+
+function L(){ return T[lang]; }
+function CAT(){ return CATEGORIE[catIdx]; }
+function keyCounts(){ return "tbh_counts_resto_v2"; }
+function keyPrezzi(){ return "tbh_prezzi_resto_v2"; }
+
+/* --- PERSISTENZA --- */
+function save(){
+  try{
+    localStorage.setItem(keyCounts(), JSON.stringify(counts));
+    document.getElementById('saveStatus').textContent = L().ttSaved;
+  }catch(e){ document.getElementById('saveStatus').textContent = "!"; }
+}
+function savePrezzi(){
+  try{ localStorage.setItem(keyPrezzi(), JSON.stringify(prezzi)); }catch(e){}
+}
+function load(){
+  try{ const r=localStorage.getItem(keyCounts()); if(r) counts=JSON.parse(r); }catch(e){ counts={}; }
+  try{ const p=localStorage.getItem(keyPrezzi()); if(p) prezzi=JSON.parse(p); }catch(e){ prezzi={}; }
+  try{ const l=localStorage.getItem(LANG_KEY); if(l && T[l]) lang=l; }catch(e){}
+}
+
+function ensureCat(){
+  const id=CAT().id;
+  if(!counts[id]) counts[id] = CAT().zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
+  if(CAT().zona==='doppia'){
+    if(!counts[id].bar) counts[id].bar={};
+    if(!counts[id].resto) counts[id].resto={};
+    if(!counts[id].cave) counts[id].cave={};
+  }else{
+    if(!counts[id].single) counts[id].single={};
+  }
+  if(!prezzi[id]) prezzi[id]={};
+}
+
+/* --- PREZZO EFFETTIVO --- */
+function prezzoDi(idx){
+  const id=CAT().id;
+  const p=prezzi[id] ? prezzi[id][idx] : undefined;
+  return (p!==undefined && p!==null && p!=="") ? Number(p) : CAT().items[idx].pa;
+}
+
+/* --- FILTRO NUMERICO --- */
+function filtraNumero(input){
+  let v=input.value.replace(/,/g,'.').replace(/[^0-9.]/g,'');
+  const i=v.indexOf('.');
+  if(i!==-1) v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');
+  input.value=v;
+}
+
+/* --- ZONA ATTIVA --- */
+function activeStore(){
+  const id=CAT().id;
+  if(CAT().zona==='doppia') return counts[id][zone];
+  return counts[id].single;
+}
+
+/* --- RENDER --- */
+function render(){
+  ensureCat();
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const list=document.getElementById('list');
+  list.innerHTML="";
+  const store=activeStore();
+  const modeClass = CAT().zona==='doppia' ? (zone+'-mode') : 'single-mode';
+  // Cursore bottiglia disponibile SOLO per gli Spiritueux
+  const isSpiriteux = CAT().id === 'spiritueux';
+  let shown=0;
+  CAT().items.forEach((p,idx)=>{
+    if(q && !p.n.toLowerCase().includes(q)) return;
+    shown++;
+    const val=store[idx];
+    const hasVal=val!==undefined&&val!==null&&val!=="";
+    const row=document.createElement('div');
+    row.className="item "+modeClass+(hasVal?" counted":"");
+    const bottleBtn = isSpiriteux
+      ? '<button class="qty-btn bottle-btn" onclick="openBottleCursor('+idx+')" title="Cursore bottiglia">🍾</button>'
+      : '';
+    row.innerHTML=
+      '<div class="item-num">'+(idx+1)+'</div>'+
+      '<div class="item-info">'+
+        '<div class="item-name">'+p.n+'</div>'+
+        '<div class="item-meta"><span class="ref">'+(p.u||'-')+'</span>'+L().buy+': CHF '+prezzoDi(idx).toFixed(2)+'</div>'+
+      '</div>'+
+      '<div class="qty-box">'+
+        bottleBtn+
+        '<button class="qty-btn" onclick="step('+idx+',-1)">−</button>'+
+        '<input class="qty-input '+(hasVal?'has-val':'')+'" type="text" inputmode="decimal" '+
+               'value="'+(hasVal?val:'')+'" placeholder="0" '+
+               'oninput="filtraNumero(this)" onchange="setQty('+idx+',this.value)" onfocus="this.select()">'+
+        '<button class="qty-btn" onclick="step('+idx+',1)">+</button>'+
+      '</div>';
+    list.appendChild(row);
+  });
+  if(shown===0) list.innerHTML='<div class="empty-search">— 0 —</div>';
+  updateProgress();
+}
+
+function setQty(idx,value){
+  const store=activeStore();
+  const v=String(value).trim().replace(',','.');
+  if(v===""||isNaN(parseFloat(v))) delete store[idx];
+  else store[idx]=parseFloat(parseFloat(v).toFixed(2));
+  save(); render();
+}
+function step(idx,delta){
+  const store=activeStore();
+  const st=CAT().step;
+  const cur=store[idx]||0;
+  // Uso toFixed(2) per eliminare le cifre periodiche binarie di JavaScript
+  // (es. 0.1 + 0.2 = 0.30000000000000004 → arrotondato a 0.30 esatto)
+  let next=parseFloat((cur+delta*st).toFixed(2));
+  if(next<0) next=0;
+  if(next===0) delete store[idx];
+  else store[idx]=next;
+  save(); render();
+}
+
+/* === CURSORE BOTTIGLIA (solo Spiritueux) ===
+   Il valore salvato nel sistema resta un singolo numero (es. 3.65).
+   Il modal lo scompone in "intere" (parte intera) + "aperta" (parte decimale)
+   per permettere la conta visiva, e lo ricompone al salvataggio. */
+let bmIdx = null;
+let bmIntere = 0;
+let bmAperta = 0;
+let bmDragging = false;
+
+function openBottleCursor(idx){
+  bmIdx = idx;
+  const store = activeStore();
+  const cur = store[idx] || 0;
+  // Scompongo il valore corrente in parte intera + parte decimale
+  bmIntere = Math.floor(cur);
+  bmAperta = parseFloat((cur - bmIntere).toFixed(2));
+  if(bmAperta < 0) bmAperta = 0;
+  if(bmAperta > 1) bmAperta = 1;
+  const p = CAT().items[idx];
+  document.getElementById('bmName').textContent = p.n;
+  document.getElementById('bmMeta').textContent = (p.u||'-') + ' · CHF ' + prezzoDi(idx).toFixed(2);
+  document.getElementById('bmLabel').textContent = p.n.substring(0, 10);
+  document.getElementById('bmLabelU').textContent = p.u || '';
+  bmRender();
+  document.getElementById('bottleModal').classList.add('show');
+  bmAttachDrag();
+}
+function closeBottleCursor(){
+  document.getElementById('bottleModal').classList.remove('show');
+  bmIdx = null;
+}
+
+function bmRender(){
+  // SVG: liquido
+  const fillPx = Math.round(bmAperta * 134);  // area utile 134px
+  const liquid = document.getElementById('bmLiquid');
+  if(liquid){
+    liquid.setAttribute('y', 162 - fillPx);
+    liquid.setAttribute('height', fillPx);
+  }
+  // posizione linea cursore
+  const hit = document.getElementById('bmHit');
+  if(hit){
+    const cursorTop = 162 - fillPx;
+    hit.style.top = (cursorTop - 19) + 'px';
+  }
+  // percentuale e numero
+  const pct = document.getElementById('bmPct');
+  if(pct) pct.innerHTML = Math.round(bmAperta*100) + '% <span style="color:var(--muted);font-weight:600;font-size:10px">(' + bmAperta.toFixed(2) + ')</span>';
+  // casella intere
+  const inp = document.getElementById('bmIntere');
+  if(inp && document.activeElement !== inp){
+    inp.value = (bmIntere === Math.floor(bmIntere)) ? String(bmIntere) : bmIntere.toString();
+  }
+  // totale
+  const tot = parseFloat((bmIntere + bmAperta).toFixed(2));
+  const totEl = document.getElementById('bmTot');
+  if(totEl) totEl.textContent = tot.toFixed(2);
+  // preset attivo
+  document.querySelectorAll('.bm-preset-btn').forEach(btn => btn.classList.remove('active'));
+  const presets = {0:'Vuota', 0.25:'1/4', 0.5:'1/2', 0.75:'3/4', 1:'Piena'};
+  if(presets[bmAperta] !== undefined){
+    document.querySelectorAll('.bm-preset-btn').forEach(btn => {
+      if(btn.textContent === presets[bmAperta]) btn.classList.add('active');
+    });
+  }
+}
+
+function bmSetIntere(val){
+  const v = String(val).trim().replace(',','.');
+  let n = parseFloat(v);
+  if(isNaN(n) || n < 0) n = 0;
+  bmIntere = parseFloat(n.toFixed(2));
+  bmRender();
+}
+function bmAdjustIntere(delta){
+  bmIntere = parseFloat(Math.max(0, bmIntere + delta).toFixed(2));
+  bmRender();
+}
+function bmSetAperta(v){
+  v = Math.max(0, Math.min(1, v));
+  bmAperta = parseFloat(v.toFixed(2));
+  bmRender();
+}
+
+function bmSave(){
+  if(bmIdx === null) return;
+  const tot = parseFloat((bmIntere + bmAperta).toFixed(2));
+  const store = activeStore();
+  if(tot === 0){
+    delete store[bmIdx];
+  } else {
+    store[bmIdx] = tot;
+  }
+  save();
+  closeBottleCursor();
+  render();
+  showToast('Salvato: ' + tot.toFixed(2));
+}
+
+function bmAttachDrag(){
+  const hit = document.getElementById('bmHit');
+  const stage = document.getElementById('bmStage');
+  const line = document.getElementById('bmLine');
+  if(!hit || !stage) return;
+
+  function moveToY(clientY){
+    const rect = stage.getBoundingClientRect();
+    const y = clientY - rect.top;
+    // area utile: da y=28 (alto) a y=162 (basso) = 134 px
+    const topY = 28, botY = 162;
+    let rel = (botY - y) / (botY - topY);
+    rel = Math.max(0, Math.min(1, rel));
+    bmSetAperta(rel);
+  }
+
+  // uso removeEventListener via proxy per evitare duplicati su riapertura
+  const newHit = hit.cloneNode(true);
+  hit.parentNode.replaceChild(newHit, hit);
+  const freshLine = document.getElementById('bmLine');
+
+  newHit.addEventListener('touchstart', (e)=>{
+    bmDragging = true;
+    if(freshLine) freshLine.classList.add('dragging');
+    e.preventDefault();
+    moveToY(e.touches[0].clientY);
+  }, {passive:false});
+  newHit.addEventListener('touchmove', (e)=>{
+    if(!bmDragging) return;
+    e.preventDefault();
+    moveToY(e.touches[0].clientY);
+  }, {passive:false});
+  newHit.addEventListener('touchend', ()=>{
+    bmDragging = false;
+    if(freshLine) freshLine.classList.remove('dragging');
+  });
+  newHit.addEventListener('mousedown', (e)=>{
+    bmDragging = true;
+    if(freshLine) freshLine.classList.add('dragging');
+    moveToY(e.clientY);
+  });
+
+  // tap sulla bottiglia (fuori dall'hit) salta al punto
+  stage.addEventListener('click', (e) => {
+    if(bmDragging) return;
+    if(e.target.closest('.bm-cursor-hit')) return; // evita doppio handling
+    moveToY(e.clientY);
+  });
+}
+// mousemove / mouseup globali (una sola volta)
+document.addEventListener('mousemove', (e)=>{
+  if(!bmDragging) return;
+  const stage = document.getElementById('bmStage');
+  if(!stage) return;
+  const rect = stage.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const topY = 28, botY = 162;
+  let rel = (botY - y) / (botY - topY);
+  rel = Math.max(0, Math.min(1, rel));
+  bmSetAperta(rel);
+});
+document.addEventListener('mouseup', ()=>{
+  if(bmDragging){
+    bmDragging = false;
+    const line = document.getElementById('bmLine');
+    if(line) line.classList.remove('dragging');
+  }
+});
+function switchZone(z){
+  const doppia = CAT().zona==='doppia';
+  // blocca click su schede non pertinenti alla categoria
+  if(doppia && z==='single') return;
+  if(!doppia && z!=='single') return;
+  zone=z;
+  buildTabs();
+  updateProgress();
+  render();
+}
+
+function updateProgress(){
+  ensureCat();
+  const id=CAT().id;
+  const total=CAT().items.length;
+  let done;
+  if(CAT().zona==='doppia'){
+    const dB=Object.keys(counts[id].bar).length;
+    const dC=Object.keys(counts[id].cave||{}).length;
+    const dR=Object.keys(counts[id].resto).length;
+    const eBar=document.getElementById('badgeBar');
+    const eCave=document.getElementById('badgeCave');
+    const eResto=document.getElementById('badgeResto');
+    if(eBar) eBar.textContent=dB;
+    if(eCave) eCave.textContent=dC;
+    if(eResto) eResto.textContent=dR;
+    done = zone==='bar'?dB : (zone==='cave'?dC : dR);
+  }else{
+    done=Object.keys(counts[id].single).length;
+    const eS=document.getElementById('badgeSingle');
+    if(eS) eS.textContent=done;
+  }
+  document.getElementById('progText').textContent=done+" / "+total;
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('progPct').textContent=pct+"%";
+  document.getElementById('progBar').style.width=pct+"%";
+}
+
+/* --- CATEGORIA --- */
+function buildCatSelect(){
+  const sel=document.getElementById('catSelect');
+  sel.innerHTML="";
+  CATEGORIE.forEach((c,i)=>{
+    const o=document.createElement('option');
+    o.value=i; o.textContent=c.nome+"  ("+c.items.length+")";
+    sel.appendChild(o);
+  });
+  sel.value=catIdx;
+}
+function buildTabs(){
+  const tabs=document.getElementById('tabs');
+  const doppia = CAT().zona==='doppia';
+  tabs.className="tabs";
+  // VARIANTE SETTORE: abilito solo le schede di questo settore
+  const SHOW_BAR = false;
+  const SHOW_CAVE = false;
+  const SHOW_RESTO = true;
+  const SHOW_CUISINE = false;
+  const tBar = doppia && SHOW_BAR;
+  const tCave = doppia && SHOW_CAVE;
+  const tResto = doppia && SHOW_RESTO;
+  const tCuisine = !doppia && SHOW_CUISINE;
+  let parts = [];
+  if(SHOW_BAR) parts.push('<button class="tab bar'+(tBar?'':' disabled')+(zone==='bar'&&tBar?' active':'')+'" data-zone="bar" '+(tBar?'onclick="switchZone(\'bar\')"':'')+'><span>'+L().bar+'</span> <span class="badge" id="badgeBar">0</span></button>');
+  if(SHOW_CAVE) parts.push('<button class="tab cave'+(tCave?'':' disabled')+(zone==='cave'&&tCave?' active':'')+'" data-zone="cave" '+(tCave?'onclick="switchZone(\'cave\')"':'')+'><span>'+L().cave+'</span> <span class="badge" id="badgeCave">0</span></button>');
+  if(SHOW_RESTO) parts.push('<button class="tab resto'+(tResto?'':' disabled')+(zone==='resto'&&tResto?' active':'')+'" data-zone="resto" '+(tResto?'onclick="switchZone(\'resto\')"':'')+'><span>'+L().resto+'</span> <span class="badge" id="badgeResto">0</span></button>');
+  if(SHOW_CUISINE) parts.push('<button class="tab cuisine'+(tCuisine?'':' disabled')+(zone==='single'&&tCuisine?' active':'')+'" data-zone="single" '+(tCuisine?'onclick="switchZone(\'single\')"':'')+'><span>'+L().cuisine+'</span> <span class="badge" id="badgeSingle">0</span></button>');
+  tabs.innerHTML = parts.join('');
+}
+function changeCategoria(i){
+  catIdx=parseInt(i,10);
+  // zona iniziale corretta: bar per le bevande, single (cuisine) per la cucina
+  zone = CAT().zona==='doppia' ? 'resto' : 'single';
+  buildTabs();
+  document.getElementById('search').value="";
+  updateTip();
+  updateProgress();
+  render();
+}
+function updateTip(){
+  document.getElementById('tipBar').textContent = CAT().step<1 ? L().tipDec : L().tipInt;
+}
+
+/* --- LINGUA --- */
+function applyLang(){
+  const t=L();
+  document.documentElement.lang=lang;
+  document.getElementById('hCat').textContent=t.appCat;
+  document.getElementById('lblCounted').textContent=t.counted;
+  document.getElementById('search').placeholder=t.search;
+  document.getElementById('btnReset').textContent=t.reset;
+  document.getElementById('btnExport').textContent=t.export;
+  document.getElementById('exTitle').textContent=t.exTitle;
+  document.getElementById('exDesc').textContent=t.exDesc;
+  document.getElementById('exHint').textContent=t.exHint;
+  document.getElementById('exRecap').textContent=t.exRecap;
+  document.getElementById('exSteps').textContent=t.exSteps;
+  document.getElementById('exBtnPdf').textContent=t.exPdf;document.getElementById('exBtnPdfAll').textContent=t.exPdfAll;
+  document.getElementById('exBtnClose').textContent=t.exClose;
+  document.getElementById('exBtnCopy').textContent=t.exCopy;
+  document.getElementById('setTitle').textContent=t.setTitle;
+  document.getElementById('setLangLabel').textContent=t.setLang;
+  document.getElementById('setPriceLabel').textContent=t.setPrice;
+  document.getElementById('setBtnClose').textContent=t.setClose;
+  document.getElementById('rsTitle').textContent=t.rsTitle;
+  document.getElementById('rsDesc').textContent=t.rsDesc;
+  document.getElementById('rsCancel').textContent=t.rsCancel;
+  document.getElementById('rsOk').textContent=t.rsOk;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  buildTabs(); updateTip(); render();
+}
+function setLang(l){
+  lang=l;
+  try{ localStorage.setItem(LANG_KEY,l); }catch(e){}
+  applyLang();
+}
+
+/* --- IMPOSTAZIONI / PREZZI (con password) --- */
+function openSettings(){
+  priceUnlocked=false;
+  renderPriceArea();
+  document.getElementById('settingsModal').classList.add('show');
+}
+function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }
+
+function renderPriceArea(){
+  const area=document.getElementById('priceArea');
+  if(!priceUnlocked){
+    area.innerHTML=
+      '<div class="locked">'+
+        '<div>'+L().pwdAsk+'</div>'+
+        '<input class="pwd-input" id="pwdPrice" type="password" inputmode="numeric" '+
+               'maxlength="8" placeholder="••••">'+
+        '<button class="m-primary" style="width:100%;padding:12px;border:none;border-radius:9px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer" '+
+                'onclick="tryUnlockPrices()">'+L().pwdOk+'</button>'+
+      '</div>';
+    return;
+  }
+  // sbloccato: selettore categoria + lista prezzi
+  let opts="";
+  CATEGORIE.forEach((c,i)=>{ opts+='<option value="'+i+'"'+(i===catIdx?' selected':'')+'>'+c.nome+'</option>'; });
+  area.innerHTML=
+    '<select class="price-cat-sel" id="priceCatSel" onchange="renderPriceList()">'+opts+'</select>'+
+    '<input type="text" id="priceSearch" placeholder="'+L().search+'" '+
+      'style="width:100%;padding:9px 12px;font-size:14px;border:1px solid rgba(15,14,12,.25);border-radius:8px;background:var(--paper);font-family:inherit;margin-bottom:8px">'+
+    '<div class="price-list" id="priceList"></div>'+
+    '<button class="m-ghost" style="width:100%;margin-top:10px;padding:11px;border:none;border-radius:9px;font-weight:700;font-family:inherit;font-size:13px;cursor:pointer" '+
+            'onclick="resetPricesCat()">'+L().resetPrices+'</button>';
+  document.getElementById('priceSearch').addEventListener('input',renderPriceList);
+  renderPriceList();
+}
+function tryUnlockPrices(){
+  const v=document.getElementById('pwdPrice').value;
+  if(v===PASSWORD){ priceUnlocked=true; renderPriceArea(); }
+  else{ showToast(L().pwdWrong); document.getElementById('pwdPrice').value=""; }
+}
+function renderPriceList(){
+  const ci=parseInt(document.getElementById('priceCatSel').value,10);
+  const cat=CATEGORIE[ci];
+  const q=(document.getElementById('priceSearch').value||"").trim().toLowerCase();
+  const box=document.getElementById('priceList');
+  box.innerHTML="";
+  if(!prezzi[cat.id]) prezzi[cat.id]={};
+  cat.items.forEach((p,idx)=>{
+    if(q && !p.n.toLowerCase().includes(q)) return;
+    const pr=prezzi[cat.id][idx];
+    const val=(pr!==undefined&&pr!==null&&pr!=="")?Number(pr):p.pa;
+    const row=document.createElement('div');
+    row.className="price-row";
+    row.innerHTML=
+      '<div class="price-name">'+p.n+'</div>'+
+      '<span class="price-chf">CHF</span>'+
+      '<input class="price-input" type="text" inputmode="decimal" value="'+val.toFixed(2)+'" '+
+             'oninput="filtraNumero(this)" onchange="setPrezzo(\''+cat.id+'\','+idx+',this.value)">';
+    box.appendChild(row);
+  });
+}
+function setPrezzo(catId,idx,value){
+  if(!prezzi[catId]) prezzi[catId]={};
+  const v=String(value).trim().replace(',','.');
+  if(v===""||isNaN(parseFloat(v))) delete prezzi[catId][idx];
+  else prezzi[catId][idx]=parseFloat(v);
+  savePrezzi();
+  render();
+  showToast(L().ttPriceSaved);
+}
+function resetPricesCat(){
+  const ci=parseInt(document.getElementById('priceCatSel').value,10);
+  const catId=CATEGORIE[ci].id;
+  prezzi[catId]={};
+  savePrezzi();
+  renderPriceList();
+  render();
+  showToast(L().ttPriceReset);
+}
+
+/* --- EXPORT --- */
+function buildRows(){
+  ensureCat();
+  const id=CAT().id;
+  return CAT().items.map((p,idx)=>{
+    if(CAT().zona==='doppia'){
+      const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+      const hasB=(b!==undefined&&b!==null&&b!=="");
+      const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+      const hasR=(r!==undefined&&r!==null&&r!=="");
+      // BAR EFFETTIVO = bar + cave (la cave Bowling si somma al bar)
+      const barTot = (hasB||hasC) ? ((Number(b)||0)+(Number(cv)||0)) : "";
+      const rv=hasR?r:"";
+      const tot=(barTot===""&&rv==="")?"":((Number(barTot)||0)+(Number(r)||0));
+      return {n:idx+1,nome:p.n,unita:p.u,pa:prezzoDi(idx),
+              bar:hasB?b:"",cave:hasC?cv:"",resto:rv,
+              barTot:barTot, tot:tot, doppia:true};
+    }else{
+      const s=counts[id].single[idx];
+      const sv=(s!==undefined&&s!==null&&s!=="")?s:"";
+      return {n:idx+1,nome:p.n,unita:p.u,pa:prezzoDi(idx),qta:sv,doppia:false};
+    }
+  });
+}
+function openExport(){
+  ensureCat();
+  const id=CAT().id;
+  let summ;
+  if(CAT().zona==='doppia'){
+    const dC = Object.keys(counts[id].cave||{}).length;
+    summ='Bar '+Object.keys(counts[id].bar).length+' · Cave '+dC+' · Resto '+Object.keys(counts[id].resto).length;
+  }else{
+    summ=L().counted+' '+Object.keys(counts[id].single).length;
+  }
+  document.getElementById('exportSummary').textContent=summ;
+  document.getElementById('exportPreview').textContent=buildRiepilogo();
+  document.getElementById('exportModal').classList.add('show');
+}
+function closeExport(){ document.getElementById('exportModal').classList.remove('show'); }
+
+function buildRiepilogo(){
+  const d=new Date();
+  const loc=lang==='en'?'en-GB':(lang==='fr'?'fr-FR':'it-IT');
+  const dataStr=d.toLocaleDateString(loc,{day:'2-digit',month:'2-digit',year:'numeric'});
+  let t="INVENTARIO "+CAT().nome.toUpperCase()+" — TBH\n"+L().confDate+" "+dataStr+"\n";
+  t+="------------------------------\n";
+  let n=0;
+  buildRows().forEach(r=>{
+    if(r.doppia){
+      if(r.barTot!==""||r.resto!==""){
+        n++;
+        const b=r.barTot===""?"0":String(r.barTot).replace('.',',');
+        const rr=r.resto===""?"0":String(r.resto).replace('.',',');
+        const tt=String(r.tot).replace('.',',');
+        t+=r.nome+": "+b+" / "+rr+" / "+tt+"\n";
+      }
+    }else{
+      if(r.qta!==""){
+        n++;
+        t+=r.nome+": "+String(r.qta).replace('.',',')+"\n";
+      }
+    }
+  });
+  t+="------------------------------\n";
+  t+=L().counted+": "+n+" / "+CAT().items.length;
+  if(n===0) return L().noQty;
+  return t;
+}
+function copyRiepilogo(){
+  const text=buildRiepilogo();
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>showToast(L().ttCopied)).catch(()=>fallbackCopy(text));
+  }else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); showToast(L().ttCopied); }catch(e){}
+  document.body.removeChild(ta);
+}
+
+/* Costruisce il blocco HTML stampabile di UNA categoria (indice ci).
+   pageBreak=true → ogni categoria comincia su pagina nuova. */
+function buildCatBlock(ci, pageBreak){
+  const c = CATEGORIE[ci];
+  const id = c.id;
+  const doppia = c.zona==='doppia';
+  // assicuro che il counts esista anche per categorie non ancora aperte
+  if(!counts[id]) counts[id] = doppia ? {bar:{},resto:{},cave:{}} : {single:{}};
+  if(doppia && !counts[id].cave) counts[id].cave={};
+  const dB = doppia ? Object.keys(counts[id].bar||{}).length : 0;
+  const dC = doppia ? Object.keys(counts[id].cave||{}).length : 0;
+  const dR = doppia ? Object.keys(counts[id].resto||{}).length : 0;
+  const dS = !doppia ? Object.keys(counts[id].single||{}).length : 0;
+  const tot = c.items.length;
+  let trs="";
+  c.items.forEach((p,idx)=>{
+    const pa = (prezzi[id] && prezzi[id][idx]!==undefined && prezzi[id][idx]!==null && prezzi[id][idx]!=="")
+               ? Number(prezzi[id][idx]) : p.pa;
+    if(doppia){
+      const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+      const hasB=(b!==undefined&&b!==null&&b!=="");
+      const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+      const hasR=(r!==undefined&&r!==null&&r!=="");
+      // BAR del PDF = bar + cave bowling (somma)
+      const barTot = (hasB||hasC) ? ((Number(b)||0)+(Number(cv)||0)) : "–";
+      const rv = hasR ? r : "–";
+      const tv = (barTot==="–" && rv==="–") ? "–" : ((Number(barTot)||0)+(Number(r)||0));
+      trs+='<tr><td>'+(idx+1)+'</td><td>'+p.n+'</td><td>'+(p.u||'-')+'</td>'+
+           '<td class="num">'+barTot+'</td><td class="num">'+rv+'</td><td class="num">'+tv+'</td></tr>';
+    }else{
+      const s=counts[id].single[idx];
+      const sv=(s!==undefined&&s!==null&&s!=="")?s:"–";
+      trs+='<tr><td>'+(idx+1)+'</td><td>'+p.n+'</td><td>'+(p.u||'-')+'</td><td class="num">'+sv+'</td></tr>';
+    }
+  });
+  const head = doppia
+    ? '<th>#</th><th>'+L().tProd+'</th><th>Unité</th><th>Qté Bar</th><th>Qté Resto</th><th>Qté '+L().tTot+'</th>'
+    : '<th>#</th><th>'+L().tProd+'</th><th>Unité</th><th>Qté '+L().cuisine+'</th>';
+  const sub = doppia
+    ? 'Bar(+Cave): '+Math.max(dB,dC)+' · Resto: '+dR+' · su '+tot
+    : L().cuisine+': '+dS+'/'+tot;
+  const breakCls = pageBreak ? ' class="p-break"' : '';
+  return '<section'+breakCls+'>'+
+    '<div class="p-title">'+c.nome+' — The Bowling Hôtel</div>'+
+    '<div class="p-sub">'+sub+'</div>'+
+    '<table class="p-table"><thead><tr>'+head+'</tr></thead><tbody>'+trs+'</tbody></table>'+
+    '</section>';
+}
+
+function printPDF(mode){
+  const d=new Date();
+  const loc=lang==='en'?'en-GB':(lang==='fr'?'fr-FR':'it-IT');
+  const dataStr=d.toLocaleDateString(loc,{day:'2-digit',month:'long',year:'numeric'});
+  let body = "";
+  if(mode==='all'){
+    // copertina + 13 categorie, una per pagina
+    body += '<section class="p-cover">'+
+      '<div class="p-cover-title">Inventario completo</div>'+
+      '<div class="p-cover-sub">The Bowling Hôtel</div>'+
+      '<div class="p-cover-date">'+L().confDate+' '+dataStr+'</div>'+
+      '<div class="p-cover-list">';
+    CATEGORIE.forEach((c,i)=>{
+      const id=c.id;
+      const doppia=c.zona==='doppia';
+      let cnt = 0;
+      if(counts[id]){
+        if(doppia){
+          cnt = new Set([...Object.keys(counts[id].bar||{}),...Object.keys(counts[id].resto||{})]).size;
+        }else{
+          cnt = Object.keys(counts[id].single||{}).length;
+        }
+      }
+      body += '<div class="p-cover-row"><span>'+(i+1)+'. '+c.nome+'</span><span>'+cnt+' / '+c.items.length+'</span></div>';
+    });
+    body += '</div></section>';
+    CATEGORIE.forEach((c,i)=>{
+      body += buildCatBlock(i, true);  // page break su ogni categoria
+    });
+  }else{
+    // singola categoria
+    body += '<div class="p-doc-head">'+L().confDate+' '+dataStr+'</div>';
+    body += buildCatBlock(catIdx, false);
+  }
+  body += '<div class="p-foot">The Bowling Hôtel — Inventario.</div>';
+  document.getElementById('printArea').innerHTML = body;
+  showToast(L().ttPrint);
+  setTimeout(()=>window.print(),300);
+}
+
+/* --- STATISTICHE FINALI (valori CHF) --- */
+function computeStats(){
+  // per ogni categoria calcolo: numero prodotti contati, valore totale CHF
+  // Bar effettivo = bar + cave. Per le categorie singola = single.
+  const out = { cat:[], totBoissons:0, totCuisine:0, totGen:0,
+                contatiBoissons:0, totaliBoissons:0,
+                contatiCuisine:0, totaliCuisine:0 };
+  CATEGORIE.forEach((c,ci)=>{
+    const id=c.id;
+    if(!counts[id]) counts[id] = c.zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
+    let valore=0, contati=0;
+    const doppia = c.zona==='doppia';
+    c.items.forEach((p,idx)=>{
+      const pa = (prezzi[id] && prezzi[id][idx]!==undefined && prezzi[id][idx]!==null && prezzi[id][idx]!=="")
+                 ? Number(prezzi[id][idx]) : p.pa;
+      let qta = 0;
+      let hasQta = false;
+      if(doppia){
+        const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+        const hasB=(b!==undefined&&b!==null&&b!=="");
+        const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+        const hasR=(r!==undefined&&r!==null&&r!=="");
+        if(hasB||hasC||hasR){
+          qta = (Number(b)||0) + (Number(cv)||0) + (Number(r)||0);
+          hasQta = true;
+        }
+      }else{
+        const s=counts[id].single[idx];
+        if(s!==undefined&&s!==null&&s!==""){
+          qta = Number(s)||0;
+          hasQta = true;
+        }
+      }
+      if(hasQta){
+        contati++;
+        valore += qta * pa;
+      }
+    });
+    valore = Math.round(valore*100)/100;
+    const isBoisson = doppia; // bevande = doppia, cucina = singola
+    out.cat.push({nome:c.nome, valore:valore, contati:contati, totale:c.items.length, isBoisson:isBoisson});
+    if(isBoisson){
+      out.totBoissons += valore;
+      out.contatiBoissons += contati;
+      out.totaliBoissons += c.items.length;
+    }else{
+      out.totCuisine += valore;
+      out.contatiCuisine += contati;
+      out.totaliCuisine += c.items.length;
+    }
+  });
+  out.totBoissons = Math.round(out.totBoissons*100)/100;
+  out.totCuisine  = Math.round(out.totCuisine*100)/100;
+  out.totGen      = Math.round((out.totBoissons + out.totCuisine)*100)/100;
+  return out;
+}
+
+function fmtCHF(n){ return new Intl.NumberFormat('fr-CH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n); }
+
+function showStats(){
+  const s = computeStats();
+  let html = '<div style="border:1px solid rgba(15,14,12,.15);border-radius:9px;overflow:hidden">';
+  html += '<div style="background:var(--ink);color:#fff;padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.05em">BOISSONS</div>';
+  s.cat.filter(c=>c.isBoisson).forEach(c=>{
+    html += '<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid rgba(15,14,12,.06);font-size:13px">'+
+      '<span>'+c.nome+' <span style="color:var(--muted);font-size:11px">('+c.contati+'/'+c.totale+')</span></span>'+
+      '<b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(c.valore)+'</b></div>';
+  });
+  html += '<div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--paper-2);font-size:13px">'+
+    '<b>Somme Boissons</b><b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(s.totBoissons)+'</b></div>';
+  html += '<div style="background:var(--ink);color:#fff;padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.05em">CUISINE</div>';
+  s.cat.filter(c=>!c.isBoisson).forEach(c=>{
+    html += '<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid rgba(15,14,12,.06);font-size:13px">'+
+      '<span>'+c.nome+' <span style="color:var(--muted);font-size:11px">('+c.contati+'/'+c.totale+')</span></span>'+
+      '<b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(c.valore)+'</b></div>';
+  });
+  html += '<div style="display:flex;justify-content:space-between;padding:9px 12px;background:var(--paper-2);font-size:13px">'+
+    '<b>Somme Cuisine</b><b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(s.totCuisine)+'</b></div>';
+  html += '<div style="display:flex;justify-content:space-between;padding:11px 12px;background:var(--ink);color:#fff;font-size:15px">'+
+    '<b>TOTAL INVENTAIRE</b><b style="font-variant-numeric:tabular-nums">CHF '+fmtCHF(s.totGen)+'</b></div>';
+  html += '</div>';
+  document.getElementById('statsArea').innerHTML = html;
+  document.getElementById('statsModal').classList.add('show');
+}
+function closeStats(){ document.getElementById('statsModal').classList.remove('show'); }
+
+function printStats(){
+  const s = computeStats();
+  const d=new Date();
+  const loc=lang==='en'?'en-GB':(lang==='fr'?'fr-FR':'it-IT');
+  const dataStr=d.toLocaleDateString(loc,{day:'2-digit',month:'long',year:'numeric'});
+  let rows='';
+  s.cat.filter(c=>c.isBoisson).forEach(c=>{
+    rows+='<tr><td>'+c.nome+'</td><td class="num">'+c.contati+'/'+c.totale+'</td><td class="num">CHF '+fmtCHF(c.valore)+'</td></tr>';
+  });
+  rows+='<tr style="background:#f0e8d4"><td colspan="2"><b>Somme Boissons</b></td><td class="num"><b>CHF '+fmtCHF(s.totBoissons)+'</b></td></tr>';
+  s.cat.filter(c=>!c.isBoisson).forEach(c=>{
+    rows+='<tr><td>'+c.nome+'</td><td class="num">'+c.contati+'/'+c.totale+'</td><td class="num">CHF '+fmtCHF(c.valore)+'</td></tr>';
+  });
+  rows+='<tr style="background:#f0e8d4"><td colspan="2"><b>Somme Cuisine</b></td><td class="num"><b>CHF '+fmtCHF(s.totCuisine)+'</b></td></tr>';
+  rows+='<tr style="background:#0f0e0c;color:#fff"><td colspan="2"><b>TOTAL INVENTAIRE</b></td><td class="num"><b>CHF '+fmtCHF(s.totGen)+'</b></td></tr>';
+  document.getElementById('printArea').innerHTML=
+    '<div class="p-title">Récapitulatif Inventaire — The Bowling Hôtel</div>'+
+    '<div class="p-sub">'+L().confDate+' '+dataStr+'</div>'+
+    '<table class="p-table"><thead><tr><th>Catégorie</th><th>Comptés</th><th>Valeur</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="p-foot">The Bowling Hôtel — Récapitulatif.</div>';
+  showToast(L().ttPrint);
+  setTimeout(()=>window.print(),300);
+}
+
+/* --- EXPORT EXCEL --- */
+function downloadExcel(){
+  if(typeof XLSX==='undefined'){ showToast("Excel non disponibile, riprova"); return; }
+  const wb = XLSX.utils.book_new();
+  const d = new Date();
+  const dStr = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+
+  // FOGLIO 1: Récapitulatif (statistiche)
+  const s = computeStats();
+  const recap = [
+    ["THE BOWLING HÔTEL — INVENTAIRE PHYSIQUE MARCHANDISES"],
+    ["Date: "+dStr],
+    [],
+    ["BOISSONS","","Comptés","Total","Valeur CHF"]
+  ];
+  s.cat.filter(c=>c.isBoisson).forEach((c,i)=>{
+    recap.push([i+1, c.nome, c.contati, c.totale, c.valore]);
+  });
+  recap.push(["","Somme Boissons","","",s.totBoissons]);
+  recap.push([]);
+  recap.push(["CUISINE","","Comptés","Total","Valeur CHF"]);
+  s.cat.filter(c=>!c.isBoisson).forEach((c,i)=>{
+    recap.push([i+1, c.nome, c.contati, c.totale, c.valore]);
+  });
+  recap.push(["","Somme Cuisine","","",s.totCuisine]);
+  recap.push([]);
+  recap.push(["","TOTAL INVENTAIRE","","",s.totGen]);
+
+  const wsRecap = XLSX.utils.aoa_to_sheet(recap);
+  wsRecap['!cols']=[{wch:5},{wch:30},{wch:10},{wch:8},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsRecap, "Récapitulatif");
+
+  // UN FOGLIO PER OGNI CATEGORIA, nell'ordine
+  CATEGORIE.forEach(c=>{
+    const id=c.id;
+    if(!counts[id]) counts[id] = c.zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
+    if(c.zona==='doppia' && !counts[id].cave) counts[id].cave={};
+    const aoa = [];
+    aoa.push(["Inventaire "+c.nome+" — TBH — "+dStr]);
+    aoa.push([]);
+    if(c.zona==='doppia'){
+      aoa.push(["#","Désignation","Unité","Prix achat","Qté Bar","Qté Resto","Qté Total","Valeur CHF"]);
+      c.items.forEach((p,idx)=>{
+        const pa = (prezzi[id]&&prezzi[id][idx]!==undefined&&prezzi[id][idx]!==null&&prezzi[id][idx]!=="")
+                   ? Number(prezzi[id][idx]) : p.pa;
+        const b=counts[id].bar[idx], cv=counts[id].cave?counts[id].cave[idx]:undefined, r=counts[id].resto[idx];
+        const hasB=(b!==undefined&&b!==null&&b!=="");
+        const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+        const hasR=(r!==undefined&&r!==null&&r!=="");
+        // BAR = bar + cave
+        const barTot = (hasB||hasC) ? ((Number(b)||0)+(Number(cv)||0)) : null;
+        const rest = hasR ? Number(r) : null;
+        const tot = (barTot===null && rest===null) ? null : ((barTot||0)+(rest||0));
+        const val = tot===null ? null : Math.round(tot*pa*100)/100;
+        aoa.push([idx+1, p.n, p.u, pa, barTot, rest, tot, val]);
+      });
+    }else{
+      aoa.push(["#","Désignation","Unité","Prix achat","Qté","Valeur CHF"]);
+      c.items.forEach((p,idx)=>{
+        const pa = (prezzi[id]&&prezzi[id][idx]!==undefined&&prezzi[id][idx]!==null&&prezzi[id][idx]!=="")
+                   ? Number(prezzi[id][idx]) : p.pa;
+        const sv = counts[id].single[idx];
+        const qta = (sv!==undefined&&sv!==null&&sv!=="") ? Number(sv) : null;
+        const val = qta===null ? null : Math.round(qta*pa*100)/100;
+        aoa.push([idx+1, p.n, p.u, pa, qta, val]);
+      });
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    if(c.zona==='doppia'){
+      ws['!cols']=[{wch:4},{wch:32},{wch:9},{wch:11},{wch:9},{wch:9},{wch:9},{wch:12}];
+    }else{
+      ws['!cols']=[{wch:4},{wch:32},{wch:9},{wch:11},{wch:9},{wch:12}];
+    }
+    // i nomi dei fogli Excel hanno limite di 31 char
+    const sheetName = c.nome.substring(0,31).replace(/[\\\/\?\*\[\]]/g,'-');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  try{
+    XLSX.writeFile(wb, "Inventaire_TBH_"+dStr+".xlsx");
+    showToast("Excel scaricato ✓");
+  }catch(e){
+    showToast("Errore Excel: usa il PDF");
+  }
+}
+
+/* === ARCHIVIO MENSILE === */
+const ARCHIVE_KEY = "tbh_archivio_resto_v1";
+let archivio = {};   // { "Maggio 2026": {counts:{...}, prezzi:{...}, dataChiusura:"..."} }
+
+function loadArchivio(){
+  try{
+    const raw = localStorage.getItem(ARCHIVE_KEY);
+    if(raw) archivio = JSON.parse(raw);
+  }catch(e){ archivio = {}; }
+}
+function saveArchivio(){
+  try{ localStorage.setItem(ARCHIVE_KEY, JSON.stringify(archivio)); }catch(e){}
+}
+
+function openCloseMonth(){
+  closeSettings();
+  // pre-compilo con il mese corrente
+  const d=new Date();
+  const mesi=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  document.getElementById('cmName').value = mesi[d.getMonth()] + ' ' + d.getFullYear();
+  document.getElementById('cmPwd').value = '';
+  document.getElementById('cmReset').checked = false;
+  document.getElementById('closeMonthModal').classList.add('show');
+}
+function closeCloseMonth(){ document.getElementById('closeMonthModal').classList.remove('show'); }
+
+function doCloseMonth(){
+  const name = document.getElementById('cmName').value.trim();
+  const pwd = document.getElementById('cmPwd').value;
+  if(!name){ showToast("Inserisci nome mese"); return; }
+  if(pwd !== PASSWORD){ showToast(L().pwdWrong); document.getElementById('cmPwd').value=''; return; }
+  if(archivio[name]){
+    if(!confirm('Esiste già un mese "'+name+'". Sovrascrivere?')) return;
+  }
+  // snapshot
+  archivio[name] = {
+    counts: JSON.parse(JSON.stringify(counts)),
+    prezzi: JSON.parse(JSON.stringify(prezzi)),
+    dataChiusura: new Date().toISOString()
+  };
+  saveArchivio();
+  const azzera = document.getElementById('cmReset').checked;
+  if(azzera){
+    counts = {};
+    save();
+    render();
+  }
+  closeCloseMonth();
+  showToast('Mese "'+name+'" salvato ✓');
+}
+
+function openHistory(){
+  closeSettings();
+  renderHistory();
+  document.getElementById('historyModal').classList.add('show');
+}
+function closeHistory(){ document.getElementById('historyModal').classList.remove('show'); }
+
+function renderHistory(){
+  const box = document.getElementById('historyList');
+  const mesi = Object.keys(archivio).sort((a,b)=>{
+    const da = archivio[a].dataChiusura||'';
+    const db = archivio[b].dataChiusura||'';
+    return db.localeCompare(da);
+  });
+  if(mesi.length === 0){
+    box.innerHTML = '<div style="padding:30px 10px;text-align:center;color:var(--muted)"><div style="font-size:36px;opacity:.4;margin-bottom:8px">📚</div>'+
+      '<div style="font-weight:600;font-size:14px;color:var(--ink);margin-bottom:4px">Nessun mese archiviato</div>'+
+      '<div style="font-size:12px">Chiudi un mese o importa un file Excel per iniziare.</div></div>';
+    return;
+  }
+  box.innerHTML = mesi.map(m=>{
+    const data = archivio[m];
+    const stats = computeStatsForCounts(data.counts, data.prezzi);
+    const dStr = data.dataChiusura ? new Date(data.dataChiusura).toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}) : '';
+    return '<div onclick="openMonthDetail(\''+m.replace(/'/g,"\\'")+'\')" style="padding:12px 14px;margin-bottom:8px;background:var(--paper-2);border-radius:9px;cursor:pointer;border:1px solid rgba(15,14,12,.08)">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+        '<div><div style="font-weight:700;font-size:14px">'+m+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);margin-top:2px">Chiuso il '+dStr+'</div></div>'+
+        '<div style="text-align:right"><div style="font-size:15px;font-weight:700;color:var(--info);font-variant-numeric:tabular-nums">CHF '+fmtCHF(stats.totGen)+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);margin-top:2px">'+(stats.contatiBoissons+stats.contatiCuisine)+' prodotti</div></div>'+
+      '</div></div>';
+  }).join('');
+}
+
+let currentDetailMonth = null;
+function openMonthDetail(m){
+  currentDetailMonth = m;
+  closeHistory();
+  document.getElementById('mdTitle').textContent = m;
+  const data = archivio[m];
+  const stats = computeStatsForCounts(data.counts, data.prezzi);
+  let html = '<div style="background:var(--paper-2);padding:12px;border-radius:9px;margin-bottom:12px">'+
+    '<div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;margin-bottom:4px">VALORE TOTALE</div>'+
+    '<div style="font-size:28px;font-weight:800;font-variant-numeric:tabular-nums">CHF '+fmtCHF(stats.totGen)+'</div></div>';
+  html += '<div style="max-height:50vh;overflow-y:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">';
+  html += '<tr style="background:var(--ink);color:#fff"><th style="text-align:left;padding:6px 8px;font-size:11px">Categoria</th><th style="text-align:right;padding:6px 8px;font-size:11px">Contati</th><th style="text-align:right;padding:6px 8px;font-size:11px">Valore CHF</th></tr>';
+  stats.cat.forEach(c=>{
+    html += '<tr style="border-bottom:1px solid rgba(15,14,12,.06)"><td style="padding:6px 8px">'+c.nome+'</td><td style="text-align:right;padding:6px 8px">'+c.contati+'/'+c.totale+'</td><td style="text-align:right;padding:6px 8px;font-variant-numeric:tabular-nums">'+fmtCHF(c.valore)+'</td></tr>';
+  });
+  html += '</table></div>';
+  document.getElementById('mdBody').innerHTML = html;
+  document.getElementById('monthDetailModal').classList.add('show');
+}
+function closeMonthDetail(){ document.getElementById('monthDetailModal').classList.remove('show'); currentDetailMonth = null; }
+
+function deleteSavedMonth(){
+  if(!currentDetailMonth) return;
+  const pwd = prompt('Password per eliminare "'+currentDetailMonth+'":');
+  if(pwd !== PASSWORD){ showToast(L().pwdWrong); return; }
+  delete archivio[currentDetailMonth];
+  saveArchivio();
+  closeMonthDetail();
+  openHistory();
+  showToast('Mese eliminato');
+}
+
+function printSavedMonth(){
+  if(!currentDetailMonth) return;
+  // swap temporaneo: uso i counts del mese salvato per generare il PDF
+  const savedCounts = counts, savedPrezzi = prezzi;
+  counts = JSON.parse(JSON.stringify(archivio[currentDetailMonth].counts));
+  prezzi = JSON.parse(JSON.stringify(archivio[currentDetailMonth].prezzi));
+  // costruisco PDF tutte categorie con etichetta del mese
+  const d=new Date();
+  const loc=lang==='en'?'en-GB':(lang==='fr'?'fr-FR':'it-IT');
+  let body = '<section class="p-cover"><div class="p-cover-title">Inventario '+currentDetailMonth+'</div>'+
+    '<div class="p-cover-sub">The Bowling Hôtel</div>'+
+    '<div class="p-cover-date">Archivio storico</div>'+
+    '<div class="p-cover-list">';
+  CATEGORIE.forEach((c,i)=>{
+    const id=c.id;
+    const doppia=c.zona==='doppia';
+    let cnt = 0;
+    if(counts[id]){
+      if(doppia){
+        cnt = new Set([...Object.keys(counts[id].bar||{}),...Object.keys(counts[id].cave||{}),...Object.keys(counts[id].resto||{})]).size;
+      }else{
+        cnt = Object.keys(counts[id].single||{}).length;
+      }
+    }
+    body += '<div class="p-cover-row"><span>'+(i+1)+'. '+c.nome+'</span><span>'+cnt+' / '+c.items.length+'</span></div>';
+  });
+  body += '</div></section>';
+  CATEGORIE.forEach((c,i)=>{ body += buildCatBlock(i, true); });
+  body += '<div class="p-foot">The Bowling Hôtel — '+currentDetailMonth+'.</div>';
+  document.getElementById('printArea').innerHTML = body;
+  setTimeout(()=>{
+    window.print();
+    // ripristino dati attivi
+    counts = savedCounts;
+    prezzi = savedPrezzi;
+  },300);
+}
+
+/* === STATISTICHE per uno snapshot qualsiasi === */
+function computeStatsForCounts(snapCounts, snapPrezzi){
+  const out = { cat:[], totBoissons:0, totCuisine:0, totGen:0,
+                contatiBoissons:0, contatiCuisine:0 };
+  CATEGORIE.forEach(c=>{
+    const id=c.id;
+    const cc = snapCounts[id] || (c.zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}});
+    let valore=0, contati=0;
+    const doppia = c.zona==='doppia';
+    c.items.forEach((p,idx)=>{
+      const pa = (snapPrezzi[id] && snapPrezzi[id][idx]!==undefined && snapPrezzi[id][idx]!==null && snapPrezzi[id][idx]!=="")
+                 ? Number(snapPrezzi[id][idx]) : p.pa;
+      let qta = 0, hasQta = false;
+      if(doppia){
+        const b=cc.bar?cc.bar[idx]:undefined, cv=cc.cave?cc.cave[idx]:undefined, r=cc.resto?cc.resto[idx]:undefined;
+        const hasB=(b!==undefined&&b!==null&&b!=="");
+        const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+        const hasR=(r!==undefined&&r!==null&&r!=="");
+        if(hasB||hasC||hasR){
+          qta = (Number(b)||0)+(Number(cv)||0)+(Number(r)||0);
+          hasQta = true;
+        }
+      }else{
+        const s=cc.single?cc.single[idx]:undefined;
+        if(s!==undefined&&s!==null&&s!==""){
+          qta = Number(s)||0;
+          hasQta = true;
+        }
+      }
+      if(hasQta){ contati++; valore += qta * pa; }
+    });
+    valore = Math.round(valore*100)/100;
+    out.cat.push({nome:c.nome, valore:valore, contati:contati, totale:c.items.length, isBoisson:doppia, id:id});
+    if(doppia){ out.totBoissons += valore; out.contatiBoissons += contati; }
+    else{ out.totCuisine += valore; out.contatiCuisine += contati; }
+  });
+  out.totBoissons = Math.round(out.totBoissons*100)/100;
+  out.totCuisine = Math.round(out.totCuisine*100)/100;
+  out.totGen = Math.round((out.totBoissons + out.totCuisine)*100)/100;
+  return out;
+}
+
+/* === CONFRONTO TRA MESI === */
+function openCompare(){
+  closeSettings();
+  const mesi = Object.keys(archivio);
+  if(mesi.length < 1){
+    showToast("Servono almeno 1 mese archiviato + l'attivo");
+  }
+  // popolo le select: corrente + tutti i mesi salvati
+  const opts = ['<option value="__current__">Inventario attivo (in corso)</option>']
+               .concat(mesi.sort().map(m=>'<option value="'+m+'">'+m+'</option>'));
+  document.getElementById('cmpA').innerHTML = opts.join('');
+  document.getElementById('cmpB').innerHTML = opts.join('');
+  if(mesi.length>0){
+    document.getElementById('cmpA').value = '__current__';
+    document.getElementById('cmpB').value = mesi[0];
+  }
+  document.getElementById('compareModal').classList.add('show');
+  renderCompare();
+}
+function closeCompare(){ document.getElementById('compareModal').classList.remove('show'); }
+
+function getSnapshot(key){
+  if(key === '__current__') return {counts:counts, prezzi:prezzi, label:'Attivo'};
+  return {counts:archivio[key].counts, prezzi:archivio[key].prezzi, label:key};
+}
+
+function renderCompare(){
+  const A = getSnapshot(document.getElementById('cmpA').value);
+  const B = getSnapshot(document.getElementById('cmpB').value);
+  const statsA = computeStatsForCounts(A.counts, A.prezzi);
+  const statsB = computeStatsForCounts(B.counts, B.prezzi);
+  let html = '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+    '<div style="flex:1;padding:10px;background:var(--paper-2);border-radius:9px">'+
+      '<div style="font-size:10px;color:var(--muted);font-weight:700">'+A.label.toUpperCase()+'</div>'+
+      '<div style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums">CHF '+fmtCHF(statsA.totGen)+'</div></div>'+
+    '<div style="flex:1;padding:10px;background:var(--paper-2);border-radius:9px">'+
+      '<div style="font-size:10px;color:var(--muted);font-weight:700">'+B.label.toUpperCase()+'</div>'+
+      '<div style="font-size:17px;font-weight:700;font-variant-numeric:tabular-nums">CHF '+fmtCHF(statsB.totGen)+'</div></div></div>';
+  const diff = statsB.totGen - statsA.totGen;
+  const diffPct = statsA.totGen!==0 ? (diff/statsA.totGen*100) : 0;
+  const diffCol = diff>=0 ? 'var(--ok)' : 'var(--warn)';
+  const diffSym = diff>=0 ? '↑' : '↓';
+  html += '<div style="padding:10px;background:'+(diff>=0?'#dcfce7':'#fee2e2')+';border-radius:9px;margin-bottom:14px;text-align:center">'+
+    '<span style="color:'+diffCol+';font-weight:700">'+diffSym+' Differenza B−A: CHF '+fmtCHF(Math.abs(diff))+' ('+diffPct.toFixed(1)+'%)</span></div>';
+  // Tabella per categoria
+  html += '<div style="max-height:45vh;overflow-y:auto"><table style="width:100%;font-size:11.5px;border-collapse:collapse">';
+  html += '<tr style="background:var(--ink);color:#fff"><th style="text-align:left;padding:5px 6px">Categoria</th><th style="text-align:right;padding:5px 6px">A</th><th style="text-align:right;padding:5px 6px">B</th><th style="text-align:right;padding:5px 6px">Δ</th></tr>';
+  statsA.cat.forEach((cA,i)=>{
+    const cB = statsB.cat[i];
+    const d = cB.valore - cA.valore;
+    html += '<tr style="border-bottom:1px solid rgba(15,14,12,.06)"><td style="padding:5px 6px">'+cA.nome+'</td>'+
+      '<td style="text-align:right;padding:5px 6px;font-variant-numeric:tabular-nums">'+fmtCHF(cA.valore)+'</td>'+
+      '<td style="text-align:right;padding:5px 6px;font-variant-numeric:tabular-nums">'+fmtCHF(cB.valore)+'</td>'+
+      '<td style="text-align:right;padding:5px 6px;color:'+(d>=0?'var(--ok)':'var(--warn)')+';font-weight:700;font-variant-numeric:tabular-nums">'+(d>=0?'+':'')+fmtCHF(d)+'</td></tr>';
+  });
+  html += '</table></div>';
+  document.getElementById('compareBody').innerHTML = html;
+}
+
+/* === IMPORTAZIONE EXCEL VECCHI MESI === */
+function importExcel(input){
+  const file = input.files[0];
+  if(!file){ return; }
+  if(typeof XLSX==='undefined'){ showToast("Libreria Excel non caricata"); return; }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const result = parseExcelTBH(wb);
+      if(result.error){ showToast("Errore: "+result.error); return; }
+      // Chiedo nome del mese
+      const nomeProposto = result.nomeProposto || ("Importato " + new Date().toLocaleDateString('it-IT'));
+      const nome = prompt('Nome del mese per questo file:', nomeProposto);
+      if(!nome) { input.value = ''; return; }
+      const pwd = prompt('Password (1111) per salvare nello storico:');
+      if(pwd !== PASSWORD){ showToast(L().pwdWrong); input.value=''; return; }
+      // Salvo nell'archivio
+      archivio[nome] = {
+        counts: result.counts,
+        prezzi: result.prezzi,
+        dataChiusura: new Date().toISOString()
+      };
+      saveArchivio();
+      input.value = '';
+      const nProd = Object.keys(result.counts).reduce((s,k)=>{
+        const c = result.counts[k];
+        return s + Object.keys(c.bar||{}).length + Object.keys(c.cave||{}).length + Object.keys(c.resto||{}).length + Object.keys(c.single||{}).length;
+      },0);
+      alert('Importato "'+nome+'": '+result.categorieLette+' categorie lette, '+nProd+' celle quantità lette.\n\nVai su Storico per visualizzarlo.');
+    }catch(err){
+      console.error(err);
+      showToast("Errore lettura Excel: " + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* Mappa nome foglio Excel -> id categoria nell'app */
+const MAPPA_FOGLI = {
+  'Spiritueux':'spiritueux',
+  'Minérales':'minerales',
+  'vins+champ':'vins',
+  'Pressions':'pressions',
+  'Emballage + Choco-Café':'emballage',
+  'snack-bonbons':'snacks',
+  'Desserts':'desserts',
+  'Boucherie-Charc.':'boucherie',
+  'Poissons':'poissons',
+  'Pâtes-riz':'pates',
+  'Condiments-ingrédients':'condiments',
+  'Fromage,oeuf,boul.':'fromages',
+  'Fruits-Légumes':'fruits',
+};
+
+function normalizzaNome(s){
+  if(!s) return '';
+  return String(s).toLowerCase().trim().replace(/\s+/g,' ').replace(/[^a-z0-9àáâãäåèéêëìíîïòóôõöùúûüç \-+]/gi,'');
+}
+
+function parseExcelTBH(wb){
+  // Strategia: per ogni foglio noto, cerco la colonna nome+quantità
+  // Bevande: nome=I(8), qty Bar=L(11) Resto=N(13) ... ma il file della contabile può variare
+  // Cucina: nome=E(4), qty=H(7) o I(8)
+  // Strategia robusta: trovo la riga d'intestazione cercando "Bar" e "Resto" o "Désignation"
+  const out = { counts:{}, prezzi:{}, categorieLette:0, error:null };
+  // Indice nomi → idx app per ogni categoria
+  const indexProd = {};
+  CATEGORIE.forEach(c=>{
+    indexProd[c.id] = {};
+    c.items.forEach((p,idx)=>{
+      indexProd[c.id][normalizzaNome(p.n)] = idx;
+    });
+  });
+
+  Object.keys(MAPPA_FOGLI).forEach(sheetName=>{
+    const cid = MAPPA_FOGLI[sheetName];
+    const ws = wb.Sheets[sheetName];
+    if(!ws) return; // foglio assente, skip
+    out.categorieLette++;
+    const range = XLSX.utils.decode_range(ws['!ref']||'A1:Z200');
+    const cat = CATEGORIE.find(c=>c.id===cid);
+    const doppia = cat.zona==='doppia';
+    out.counts[cid] = doppia ? {bar:{},resto:{},cave:{}} : {single:{}};
+    // Trovo riga intestazione: cerca una riga che contenga "Désignation" o "Bar"
+    let headerRow = -1;
+    let colName = -1, colQtyBar = -1, colQtyResto = -1, colQtySingle = -1, colPrice = -1;
+    for(let r = range.s.r; r <= Math.min(range.s.r+15, range.e.r); r++){
+      for(let c = range.s.c; c <= range.e.c; c++){
+        const cell = ws[XLSX.utils.encode_cell({r:r,c:c})];
+        if(!cell) continue;
+        const v = String(cell.v||'').toLowerCase().trim();
+        if(v === 'désignation' || v === 'designation'){ headerRow = r; colName = c; }
+        if(headerRow === r){
+          if(v === 'bar' && colQtyBar < 0) colQtyBar = c;
+          else if(v === 'resto' && colQtyResto < 0) colQtyResto = c;
+          else if(v.includes('prix') || v.includes('p.a') || v.includes('achat')){ if(colPrice<0) colPrice=c; }
+          else if(v === 'qté' || v === 'qte' || v==='quantité') { if(colQtySingle<0) colQtySingle=c; }
+        }
+      }
+      if(headerRow >= 0 && colName >= 0) break;
+    }
+    if(headerRow < 0 || colName < 0) return; // formato non riconosciuto
+    // Leggo righe sotto l'header
+    for(let r = headerRow+1; r <= range.e.r; r++){
+      const cellName = ws[XLSX.utils.encode_cell({r:r,c:colName})];
+      if(!cellName || !cellName.v) continue;
+      const nomeNorm = normalizzaNome(cellName.v);
+      const idx = indexProd[cid][nomeNorm];
+      if(idx === undefined) continue; // prodotto non riconosciuto, skip
+      if(doppia){
+        if(colQtyBar >= 0){
+          const c = ws[XLSX.utils.encode_cell({r:r,c:colQtyBar})];
+          if(c && c.v !== undefined && c.v !== '' && !isNaN(Number(c.v))){
+            const q = Number(c.v);
+            if(q !== 0) out.counts[cid].bar[idx] = q;
+          }
+        }
+        if(colQtyResto >= 0){
+          const c = ws[XLSX.utils.encode_cell({r:r,c:colQtyResto})];
+          if(c && c.v !== undefined && c.v !== '' && !isNaN(Number(c.v))){
+            const q = Number(c.v);
+            if(q !== 0) out.counts[cid].resto[idx] = q;
+          }
+        }
+      }else{
+        if(colQtySingle >= 0){
+          const c = ws[XLSX.utils.encode_cell({r:r,c:colQtySingle})];
+          if(c && c.v !== undefined && c.v !== '' && !isNaN(Number(c.v))){
+            const q = Number(c.v);
+            if(q !== 0) out.counts[cid].single[idx] = q;
+          }
+        }
+      }
+      // Prezzo (se presente)
+      if(colPrice >= 0){
+        const c = ws[XLSX.utils.encode_cell({r:r,c:colPrice})];
+        if(c && c.v !== undefined && !isNaN(Number(c.v))){
+          if(!out.prezzi[cid]) out.prezzi[cid] = {};
+          out.prezzi[cid][idx] = Number(c.v);
+        }
+      }
+    }
+  });
+  // Provo a indovinare il nome del mese dal nome del file/foglio
+  out.nomeProposto = null;
+  return out;
+}
+
+/* === EXPORT EXCEL STORICO COMPLETO === */
+function exportArchivioCompleto(){
+  if(typeof XLSX==='undefined'){ showToast("Excel non disponibile"); return; }
+  const mesi = Object.keys(archivio);
+  if(mesi.length === 0){ showToast("Nessun mese archiviato"); return; }
+  const wb = XLSX.utils.book_new();
+  // FOGLIO 1: confronto generale
+  const recap = [["INVENTARIO STORICO — The Bowling Hôtel"],[],["Mese","Categoria","Contati","Totale prodotti","Valore CHF"]];
+  mesi.sort().forEach(m=>{
+    const data = archivio[m];
+    const stats = computeStatsForCounts(data.counts, data.prezzi);
+    stats.cat.forEach(c=>{
+      recap.push([m, c.nome, c.contati, c.totale, c.valore]);
+    });
+    recap.push([m,"TOTALE","","",stats.totGen]);
+    recap.push([]);
+  });
+  const wsRecap = XLSX.utils.aoa_to_sheet(recap);
+  wsRecap['!cols']=[{wch:18},{wch:25},{wch:10},{wch:12},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsRecap, "Storico");
+  // FOGLIO PER OGNI MESE
+  mesi.sort().forEach(m=>{
+    const data = archivio[m];
+    const aoa = [["Inventario "+m+" — TBH"],[]];
+    CATEGORIE.forEach(c=>{
+      const id=c.id;
+      const cc = data.counts[id] || (c.zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}});
+      aoa.push([c.nome.toUpperCase()]);
+      if(c.zona==='doppia'){
+        aoa.push(["#","Désignation","Unité","Prix","Bar","Resto","Total","Valeur"]);
+        c.items.forEach((p,idx)=>{
+          const pa = (data.prezzi[id]&&data.prezzi[id][idx]!==undefined) ? Number(data.prezzi[id][idx]) : p.pa;
+          const b = cc.bar?cc.bar[idx]:null;
+          const cv = cc.cave?cc.cave[idx]:null;
+          const r = cc.resto?cc.resto[idx]:null;
+          const barTot = ((b!==undefined&&b!==null&&b!=="")||(cv!==undefined&&cv!==null&&cv!=="")) ? ((Number(b)||0)+(Number(cv)||0)) : null;
+          const rest = (r!==undefined&&r!==null&&r!=="") ? Number(r) : null;
+          const tot = (barTot===null && rest===null) ? null : ((barTot||0)+(rest||0));
+          const val = tot===null ? null : Math.round(tot*pa*100)/100;
+          aoa.push([idx+1, p.n, p.u, pa, barTot, rest, tot, val]);
+        });
+      }else{
+        aoa.push(["#","Désignation","Unité","Prix","Qté","Valeur"]);
+        c.items.forEach((p,idx)=>{
+          const pa = (data.prezzi[id]&&data.prezzi[id][idx]!==undefined) ? Number(data.prezzi[id][idx]) : p.pa;
+          const s = cc.single?cc.single[idx]:null;
+          const qta = (s!==undefined&&s!==null&&s!=="") ? Number(s) : null;
+          const val = qta===null ? null : Math.round(qta*pa*100)/100;
+          aoa.push([idx+1, p.n, p.u, pa, qta, val]);
+        });
+      }
+      aoa.push([]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols']=[{wch:4},{wch:32},{wch:9},{wch:9},{wch:9},{wch:9},{wch:9},{wch:11}];
+    const sn = m.substring(0,31).replace(/[\\\/\?\*\[\]]/g,'-');
+    XLSX.utils.book_append_sheet(wb, ws, sn);
+  });
+  try{
+    XLSX.writeFile(wb, "Inventario_Storico_TBH.xlsx");
+    showToast("Storico esportato ✓");
+  }catch(e){
+    showToast("Errore export storico");
+  }
+}
+
+/* === EXPORT FORMATO CONTABILE === 
+   Replica la struttura del file della contabile: un foglio per categoria,
+   nomi colonna identici (Désignation, Unité, P.A, Bar, Resto, Total), un foglio Récapitulatif. */
+function exportFormatoContabile(){
+  if(typeof XLSX==='undefined'){ showToast("Excel non disponibile"); return; }
+  const wb = XLSX.utils.book_new();
+  const d = new Date();
+  const dStr = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const stats = computeStatsForCounts(counts, prezzi);
+  // RÉCAPITULATIF (come nel file della contabile)
+  const recap = [
+    [null,null,null,null,"INVENTAIRE PHYSIQUE MARCHANDISES — THE BOWLING HÔTEL"],
+    [null,null,null,null,"Date: "+dStr],
+    [],
+    ["#","CATÉGORIE","","","Valeur CHF"]
+  ];
+  stats.cat.filter(c=>c.isBoisson).forEach((c,i)=>{
+    recap.push([i+1, c.nome, "", "", c.valore]);
+  });
+  recap.push([null,"Somme Boissons",null,null,stats.totBoissons]);
+  recap.push([]);
+  stats.cat.filter(c=>!c.isBoisson).forEach((c,i)=>{
+    recap.push([i+1, c.nome, "", "", c.valore]);
+  });
+  recap.push([null,"Somme Cuisine",null,null,stats.totCuisine]);
+  recap.push([]);
+  recap.push([null,"TOTAL INVENTAIRE",null,null,stats.totGen]);
+  const wsRecap = XLSX.utils.aoa_to_sheet(recap);
+  wsRecap['!cols']=[{wch:5},{wch:30},{wch:5},{wch:5},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, wsRecap, "Récapitulatif");
+  // UN FOGLIO per ogni categoria, col formato della contabile
+  CATEGORIE.forEach(c=>{
+    const id = c.id;
+    if(!counts[id]) counts[id] = c.zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
+    const doppia = c.zona==='doppia';
+    const aoa = [];
+    aoa.push([null,null,null,null,null,null,null,null,"Inventaire "+c.nome+" — TBH"]);
+    aoa.push([]);
+    if(doppia){
+      // colonne in stile contabile: # | Désignation | Unité | P.A | Bar | Resto | Total | Valeur
+      aoa.push(["#","Désignation","Unité","P.A","Bar","Resto","Total","Valeur CHF"]);
+    }else{
+      aoa.push(["#","Désignation","Unité","P.A","Qté","Valeur CHF"]);
+    }
+    c.items.forEach((p,idx)=>{
+      const pa = (prezzi[id]&&prezzi[id][idx]!==undefined&&prezzi[id][idx]!==null&&prezzi[id][idx]!=="")
+                 ? Number(prezzi[id][idx]) : p.pa;
+      if(doppia){
+        const b=counts[id].bar?counts[id].bar[idx]:undefined;
+        const cv=counts[id].cave?counts[id].cave[idx]:undefined;
+        const r=counts[id].resto?counts[id].resto[idx]:undefined;
+        const hasB=(b!==undefined&&b!==null&&b!=="");
+        const hasC=(cv!==undefined&&cv!==null&&cv!=="");
+        const hasR=(r!==undefined&&r!==null&&r!=="");
+        const barTot = (hasB||hasC) ? ((Number(b)||0)+(Number(cv)||0)) : null;
+        const rest = hasR ? Number(r) : null;
+        const tot = (barTot===null && rest===null) ? null : ((barTot||0)+(rest||0));
+        const val = tot===null ? null : Math.round(tot*pa*100)/100;
+        aoa.push([idx+1, p.n, p.u, pa, barTot, rest, tot, val]);
+      }else{
+        const s=counts[id].single?counts[id].single[idx]:undefined;
+        const qta = (s!==undefined&&s!==null&&s!=="") ? Number(s) : null;
+        const val = qta===null ? null : Math.round(qta*pa*100)/100;
+        aoa.push([idx+1, p.n, p.u, pa, qta, val]);
+      }
+    });
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    if(doppia) ws['!cols']=[{wch:4},{wch:32},{wch:8},{wch:9},{wch:8},{wch:8},{wch:8},{wch:11}];
+    else       ws['!cols']=[{wch:4},{wch:32},{wch:8},{wch:9},{wch:8},{wch:11}];
+    // Il nome foglio deve matchare l'Excel originale per quanto possibile
+    const sn = c.nome.substring(0,31).replace(/[\\\/\?\*\[\]]/g,'-');
+    XLSX.utils.book_append_sheet(wb, ws, sn);
+  });
+  try{
+    XLSX.writeFile(wb, "Inventaire_TBH_"+dStr+"_formato_contabile.xlsx");
+    showToast("Excel formato contabile ✓");
+  }catch(e){
+    showToast("Errore export");
+  }
+}
+
+/* --- RESET (con password) --- */
+function confirmReset(){
+  document.getElementById('rsPwdArea').innerHTML=
+    '<div style="text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:6px">'+L().pwdAskReset+'</div>'+
+    '<input class="pwd-input" id="pwdReset" type="password" inputmode="numeric" maxlength="8" placeholder="••••">';
+  document.getElementById('resetModal').classList.add('show');
+}
+function closeReset(){ document.getElementById('resetModal').classList.remove('show'); }
+function tryReset(){
+  const inp = document.getElementById('pwdReset');
+  const v = inp ? inp.value : "";
+  if(!v || v!==PASSWORD){
+    showToast(L().pwdWrong);
+    if(inp){ inp.value=""; inp.focus(); }
+    return;
+  }
+  ensureCat();
+  const id=CAT().id;
+  counts[id]= CAT().zona==='doppia' ? {bar:{},resto:{},cave:{}} : {single:{}};
+  save(); render(); closeReset();
+  showToast(L().ttReset);
+}
+
+/* --- TOAST --- */
+let toastTimer=null;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+/* --- INIT --- */
+document.getElementById('search').addEventListener('input',render);
+load();
+loadArchivio();
+buildCatSelect();
+applyLang();
+buildTabs();
+updateTip();
+render();
+</script>
+</body>
+</html>
