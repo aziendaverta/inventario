@@ -295,8 +295,9 @@
 <script>
 const SETTORE_PASSWORD = "1111";
 function checkLogin(){
-  const v = document.getElementById('loginPwd').value;
-  if(v === SETTORE_PASSWORD){
+  // normalizzo: cifre a larghezza piena -> ASCII, rimuovo spazi; confronto sempre tra stringhe
+  const v = String(document.getElementById('loginPwd').value || '').normalize('NFKC').replace(/\s+/g,'');
+  if(v === String(SETTORE_PASSWORD)){
     try{ sessionStorage.setItem('tbh_bar_logged','1'); }catch(e){}
     document.getElementById('loginOverlay').style.display = 'none';
   } else {
@@ -314,6 +315,10 @@ try{
 }catch(e){}
 document.getElementById('loginPwd').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter') checkLogin();
+});
+// il tastierino numerico iPhone non ha il tasto Invio: entro appena le cifre sono complete
+document.getElementById('loginPwd').addEventListener('input', (e)=>{
+  if(String(e.target.value).replace(/\s+/g,'').length >= String(SETTORE_PASSWORD).length) checkLogin();
 });
 // focus automatico
 setTimeout(()=>{ const i=document.getElementById('loginPwd'); if(i) i.focus(); }, 300);
