@@ -286,7 +286,7 @@
   <div style="font-size:12px;letter-spacing:.15em;opacity:.75;margin-bottom:8px;text-transform:uppercase">The Bowling Hôtel</div>
   <div style="font-size:34px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">Inventario CUISINE</div>
   <div style="font-size:13px;opacity:.75;margin-bottom:28px">Inserisci la password del settore</div>
-  <input id="loginPwd" type="password" inputmode="numeric" placeholder="••••••••" autocomplete="off"
+  <input id="loginPwd" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="••••" autocomplete="off"
          style="width:min(300px,90%);padding:14px;font-size:20px;text-align:center;border:none;border-radius:10px;letter-spacing:.3em;font-family:inherit;background:rgba(255,255,255,.95);color:#0f0e0c">
   <div id="loginErr" style="font-size:13px;margin-top:12px;opacity:0;transition:opacity .2s;color:#fecaca">Password errata</div>
   <button onclick="checkLogin()" style="margin-top:20px;padding:13px 42px;background:#0f0e0c;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Entra</button>
