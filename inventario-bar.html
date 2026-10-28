@@ -286,17 +286,18 @@
   <div style="font-size:12px;letter-spacing:.15em;opacity:.75;margin-bottom:8px;text-transform:uppercase">The Bowling Hôtel</div>
   <div style="font-size:34px;font-weight:800;letter-spacing:-.02em;margin-bottom:4px">Inventario BAR</div>
   <div style="font-size:13px;opacity:.75;margin-bottom:28px">Inserisci la password del settore</div>
-  <input id="loginPwd" type="password" inputmode="numeric" placeholder="••••••••" autocomplete="off"
+  <input id="loginPwd" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="••••" autocomplete="off"
          style="width:min(300px,90%);padding:14px;font-size:20px;text-align:center;border:none;border-radius:10px;letter-spacing:.3em;font-family:inherit;background:rgba(255,255,255,.95);color:#0f0e0c">
   <div id="loginErr" style="font-size:13px;margin-top:12px;opacity:0;transition:opacity .2s;color:#fecaca">Password errata</div>
   <button onclick="checkLogin()" style="margin-top:20px;padding:13px 42px;background:#0f0e0c;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Entra</button>
   <div style="position:absolute;bottom:20px;font-size:10px;opacity:.5;letter-spacing:.08em">Settore: BAR</div>
 </div>
 <script>
-const SETTORE_PASSWORD = "bar2026";
+const SETTORE_PASSWORD = "1111";
 function checkLogin(){
-  const v = document.getElementById('loginPwd').value;
-  if(v === SETTORE_PASSWORD){
+  // normalizzo: cifre a larghezza piena -> ASCII, rimuovo spazi; confronto sempre tra stringhe
+  const v = String(document.getElementById('loginPwd').value || '').normalize('NFKC').replace(/\s+/g,'');
+  if(v === String(SETTORE_PASSWORD)){
     try{ sessionStorage.setItem('tbh_bar_logged','1'); }catch(e){}
     document.getElementById('loginOverlay').style.display = 'none';
   } else {
@@ -314,6 +315,10 @@ try{
 }catch(e){}
 document.getElementById('loginPwd').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter') checkLogin();
+});
+// il tastierino numerico iPhone non ha il tasto Invio: entro appena le cifre sono complete
+document.getElementById('loginPwd').addEventListener('input', (e)=>{
+  if(String(e.target.value).replace(/\s+/g,'').length >= String(SETTORE_PASSWORD).length) checkLogin();
 });
 // focus automatico
 setTimeout(()=>{ const i=document.getElementById('loginPwd'); if(i) i.focus(); }, 300);
